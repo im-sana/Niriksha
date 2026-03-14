@@ -1,0 +1,22 @@
+# ============================================================
+# Niriksha Backend — Python Requirements
+# ============================================================
+
+# ── Web Framework ────────────────────────────────────────────
+fastapi==0.110.0
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9
+
+# ── AI / Computer Vision ─────────────────────────────────────
+opencv-python>=4.10.0.84
+mediapipe==0.10.30
+ultralytics==8.1.42          # YOLOv8 (downloads yolov8n.pt on first use)
+numpy>=1.26.4
+
+# ── Database ─────────────────────────────────────────────────
+motor==3.4.0                  # Async MongoDB driver
+pymongo==4.7.1
+
+# ── Utilities ─────────────────────────────────────────────────
+python-dotenv==1.0.1
+pydantic>=2.7.0
