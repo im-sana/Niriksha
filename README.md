@@ -1,4 +1,4 @@
-# 🎓 AI-Proctor: AI-Powered Hybrid Exam Cheating Detection System
+# 🎓 Niriksha: AI-Powered Hybrid Exam Cheating Detection System
 
 <p align="center">
   <img src="https://img.shields.io/badge/React-18-blue?logo=react" />
