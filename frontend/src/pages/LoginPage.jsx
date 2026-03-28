@@ -10,7 +10,7 @@ import toast from 'react-hot-toast'
 import { ShieldCheckIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import { useAuthContext } from '../context/AuthContext'
 import { authAPI } from '../api/client'
-import { motion } from 'framer-motion'
+import { motion } from 'framer-motion' // eslint-disable-line no-unused-vars
 
 export default function LoginPage() {
   const navigate = useNavigate()

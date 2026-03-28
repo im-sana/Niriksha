@@ -10,7 +10,7 @@
  *   - Risk level filter chips
  */
 import { useState, useEffect, useCallback } from 'react'
-import { AnimatePresence ,motion } from 'framer-motion'
+import { AnimatePresence ,motion } from 'framer-motion' // eslint-disable-line no-unused-vars
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import ReactMarkdown from 'react-markdown'

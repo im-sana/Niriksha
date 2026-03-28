@@ -13,7 +13,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { useAuthContext } from '../context/AuthContext'
 import { examAPI, dashboardAPI } from '../api/client'
-import { motion } from 'framer-motion'
+import { motion } from 'framer-motion' // eslint-disable-line no-unused-vars
 
 function RiskBadge({ level }) {
   const styles = {
