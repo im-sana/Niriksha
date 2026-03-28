@@ -18,6 +18,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
+from bson import ObjectId
 
 from middleware.auth_middleware import get_current_user, require_student
 from services.exam_service import (
@@ -202,9 +203,10 @@ async def analyze_frame_protected(
     total_score = score_engine.get_score(req.session_id)
     flagged     = total_score >= 15
 
-    # ── Save events to MongoDB ────────────────────────────────────
+    # ── Save events + screenshot metadata to MongoDB ───────────────
+    db = await get_database()
+
     try:
-        db = await get_database()
         if events:
             await db.cheating_logs.insert_many([
                 {**e, "session_id": req.session_id, "user_id": current_user["id"], "timestamp": datetime.utcnow().isoformat()}
@@ -217,7 +219,17 @@ async def analyze_frame_protected(
     if flagged:
         for event in events:
             if should_capture(event.get("type", "")):
-                save_screenshot(req.frame_b64, current_user["id"], event["type"])
+                screenshot_rel = save_screenshot(req.frame_b64, current_user["id"], event["type"])
+
+                # Keep latest screenshot on the session doc so submit can copy it to result.
+                if screenshot_rel and ObjectId.is_valid(req.session_id):
+                    await db.sessions.update_one(
+                        {"_id": ObjectId(req.session_id)},
+                        {"$set": {
+                            "screenshot_path": screenshot_rel,
+                            "screenshot_captured_at": datetime.utcnow().isoformat(),
+                        }},
+                    )
                 break  # One screenshot per frame is enough
 
     # ── WebSocket broadcast ───────────────────────────────────────

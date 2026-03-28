@@ -15,6 +15,7 @@ import {
 import useBrowserMonitor from '../hooks/useBrowserMonitor'
 import useWebSocket from '../hooks/useWebSocket'
 import { useAuthContext } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 import { examAPI } from '../api/client'
 
 // ──────────────────────────────────────────────
@@ -86,6 +87,7 @@ export default function ExamPage() {
   const navigate = useNavigate()
   const webcamRef = useRef(null)
   const { user } = useAuthContext()  // Get logged-in student info from JWT
+  const { resolvedTheme } = useTheme()
 
   // Session tracking
   const [sessionId, setSessionId] = useState(null)
@@ -292,6 +294,28 @@ export default function ExamPage() {
 
   // ── Score ring color ──
   const scoreColor = cheatScore < 10 ? '#10b981' : cheatScore < 15 ? '#f59e0b' : '#ef4444'
+  const isDarkTheme = resolvedTheme === 'dark'
+  const eyeOverlayBackground = isDarkTheme
+    ? 'radial-gradient(circle at center, rgba(6,182,212,0.25) 0%, rgba(2,6,23,0.98) 60%)'
+    : 'radial-gradient(circle at center, rgba(59,130,246,0.18) 0%, rgba(248,250,252,0.98) 62%)'
+  const eyeIconColor = isDarkTheme ? '#67e8f9' : '#2563eb'
+  const eyePulseBorder = isDarkTheme ? 'rgba(103,232,249,0.82)' : 'rgba(37,99,235,0.58)'
+  const questionCardStyle = {
+    background: isDarkTheme ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.82)',
+    border: isDarkTheme ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(15,23,42,0.14)',
+    backdropFilter: isDarkTheme ? 'blur(12px)' : 'blur(16px)',
+    WebkitBackdropFilter: isDarkTheme ? 'blur(12px)' : 'blur(16px)',
+    boxShadow: isDarkTheme ? 'none' : '0 20px 50px rgba(15,23,42,0.08)',
+  }
+  const navActionButtonClass = isDarkTheme
+    ? 'px-8 py-3 rounded-xl font-semibold text-sm transition-all duration-200 border border-slate-700 bg-slate-900 text-slate-50 hover:bg-slate-800'
+    : 'px-8 py-3 rounded-xl font-semibold text-sm transition-all duration-200 border border-slate-900 bg-slate-900 text-slate-50 hover:bg-slate-700'
+  const navSecondaryButtonClass = isDarkTheme
+    ? 'px-6 py-3 rounded-xl font-semibold text-sm transition-all glass border border-white/10 hover:border-blue-500/30 disabled:opacity-30 disabled:cursor-not-allowed'
+    : 'px-6 py-3 rounded-xl font-semibold text-sm transition-all bg-white/80 border border-slate-300 text-slate-700 hover:border-slate-500 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed'
+  const progressTrackStyle = {
+    background: isDarkTheme ? '#1e293b' : '#cbd5e1',
+  }
 
   // ──────────────────── START SCREEN ────────────────────
   if (!examStarted) {
@@ -354,14 +378,11 @@ export default function ExamPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950"
+              className={`fixed inset-0 z-[100] flex items-center justify-center ${isDarkTheme ? 'bg-slate-950' : 'bg-slate-100'}`}
             >
               <motion.div
                 className="absolute inset-0"
-                style={{
-                  background:
-                    'radial-gradient(circle at center, rgba(6,182,212,0.25) 0%, rgba(2,6,23,0.98) 60%)',
-                }}
+                style={{ background: eyeOverlayBackground }}
                 initial={{ opacity: 0.3, scale: 0.85 }}
                 animate={{ opacity: 1, scale: 1.2 }}
                 transition={{ duration: 1.2, ease: 'easeOut' }}
@@ -373,11 +394,20 @@ export default function ExamPage() {
                 animate={{ opacity: [0, 1, 0.9], scale: [0.35, 1.2, 2.4] }}
                 transition={{ duration: 1.2, ease: 'easeInOut' }}
               >
-                <EyeIcon className="w-28 h-28 text-cyan-300 drop-shadow-[0_0_25px_rgba(34,211,238,0.9)]" />
+                <EyeIcon
+                  className="w-28 h-28"
+                  style={{
+                    color: eyeIconColor,
+                    filter: isDarkTheme
+                      ? 'drop-shadow(0 0 25px rgba(34,211,238,0.9))'
+                      : 'drop-shadow(0 0 18px rgba(59,130,246,0.5))',
+                  }}
+                />
               </motion.div>
 
               <motion.div
-                className="absolute w-28 h-28 rounded-full border border-cyan-300/80"
+                className="absolute w-28 h-28 rounded-full border"
+                style={{ borderColor: eyePulseBorder }}
                 initial={{ scale: 0.3, opacity: 0.8 }}
                 animate={{ scale: 7, opacity: 0 }}
                 transition={{ duration: 1.2, ease: 'easeOut' }}
@@ -559,7 +589,9 @@ export default function ExamPage() {
           {/* Cheat Score Card */}
           <div className="glass-card p-4">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs text-gray-400">Integrity Score</span>
+              <span className="text-xs text-gray-400">
+                Cheating Score
+              </span>
               {isFlagged && <ExclamationTriangleIcon className="w-4 h-4 text-red-400" />}
             </div>
             <div className="flex items-center gap-3">
@@ -622,9 +654,9 @@ export default function ExamPage() {
           {/* Question progress */}
           <div className="flex items-center gap-3 mb-6">
             <span className="text-sm text-gray-400">
-              Question <span className="text-white font-bold">{currentQ + 1}</span> of {QUESTIONS.length}
+              Question <span className={`font-bold ${isDarkTheme ? 'text-white' : 'text-slate-900'}`}>{currentQ + 1}</span> of {QUESTIONS.length}
             </span>
-            <div className="flex-1 h-1.5 rounded-full bg-dark-600 overflow-hidden">
+            <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={progressTrackStyle}>
               <motion.div
                 className="h-full rounded-full"
                 style={{ background: 'linear-gradient(90deg, #3b82f6, #8b5cf6)' }}
@@ -643,9 +675,15 @@ export default function ExamPage() {
                       ? 'linear-gradient(135deg, #3b82f6, #8b5cf6)'
                       : answers[i] !== undefined
                         ? 'rgba(16,185,129,0.2)'
-                        : 'rgba(255,255,255,0.05)',
-                    border: i === currentQ ? 'none' : answers[i] !== undefined ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(255,255,255,0.08)',
-                    color: answers[i] !== undefined || i === currentQ ? '#fff' : '#64748b',
+                        : (isDarkTheme ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.06)'),
+                    border: i === currentQ
+                      ? 'none'
+                      : answers[i] !== undefined
+                        ? '1px solid rgba(16,185,129,0.4)'
+                        : (isDarkTheme ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(15,23,42,0.16)'),
+                    color: answers[i] !== undefined || i === currentQ
+                      ? '#fff'
+                      : (isDarkTheme ? '#64748b' : '#334155'),
                   }}
                 >
                   {i + 1}
@@ -663,8 +701,9 @@ export default function ExamPage() {
               exit={{ opacity: 0, x: -30 }}
               transition={{ duration: 0.25 }}
               className="glass-card p-8 mb-6 flex-1"
+              style={questionCardStyle}
             >
-              <h2 className="text-xl font-semibold text-white mb-8 leading-relaxed">
+              <h2 className={`text-xl font-semibold mb-8 leading-relaxed ${isDarkTheme ? 'text-white' : 'text-slate-900'}`}>
                 <span className="text-blue-400 font-mono mr-3">Q{currentQ + 1}.</span>
                 {QUESTIONS[currentQ].question}
               </h2>
@@ -680,19 +719,35 @@ export default function ExamPage() {
                       onClick={() => handleSelect(i)}
                       className="w-full text-left p-4 rounded-xl transition-all duration-200 flex items-center gap-4"
                       style={{
-                        background: selected ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)',
-                        border: selected ? '1px solid rgba(59,130,246,0.5)' : '1px solid rgba(255,255,255,0.06)',
-                        boxShadow: selected ? '0 0 20px rgba(59,130,246,0.2)' : 'none',
+                        background: selected
+                          ? (isDarkTheme ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.12)')
+                          : (isDarkTheme ? 'rgba(255,255,255,0.03)' : 'rgba(15,23,42,0.04)'),
+                        border: selected
+                          ? '1px solid rgba(59,130,246,0.5)'
+                          : (isDarkTheme ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(15,23,42,0.12)'),
+                        boxShadow: selected
+                          ? (isDarkTheme ? '0 0 20px rgba(59,130,246,0.2)' : '0 8px 20px rgba(59,130,246,0.15)')
+                          : 'none',
                       }}
                     >
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0"
                            style={{
-                             background: selected ? 'linear-gradient(135deg, #3b82f6, #8b5cf6)' : 'rgba(255,255,255,0.05)',
-                             color: selected ? '#fff' : '#64748b',
+                             background: selected
+                               ? 'linear-gradient(135deg, #3b82f6, #8b5cf6)'
+                               : (isDarkTheme ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.08)'),
+                             color: selected ? '#fff' : (isDarkTheme ? '#64748b' : '#334155'),
                            }}>
                         {['A', 'B', 'C', 'D'][i]}
                       </div>
-                      <span className={`text-sm ${selected ? 'text-white font-medium' : 'text-gray-300'}`}>{opt}</span>
+                      <span
+                        className="text-sm"
+                        style={{
+                          color: selected ? (isDarkTheme ? '#f8fafc' : '#0f172a') : (isDarkTheme ? '#cbd5e1' : '#334155'),
+                          fontWeight: selected ? 600 : 400,
+                        }}
+                      >
+                        {opt}
+                      </span>
                     </motion.button>
                   )
                 })}
@@ -707,7 +762,7 @@ export default function ExamPage() {
               whileTap={{ scale: 0.97 }}
               onClick={handlePrev}
               disabled={currentQ === 0}
-              className="px-6 py-3 rounded-xl font-semibold text-sm transition-all glass border border-white/10 hover:border-blue-500/30 disabled:opacity-30 disabled:cursor-not-allowed"
+              className={navSecondaryButtonClass}
             >
               ← Previous
             </motion.button>
@@ -721,7 +776,7 @@ export default function ExamPage() {
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={handleSubmit}
-                className="btn-primary px-8 py-3"
+                className={navActionButtonClass}
               >
                 Submit Exam ✓
               </motion.button>
@@ -730,7 +785,7 @@ export default function ExamPage() {
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={handleNext}
-                className="btn-primary px-8 py-3"
+                className={navActionButtonClass}
               >
                 Next →
               </motion.button>
