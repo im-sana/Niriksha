@@ -1,5 +1,5 @@
 # ============================================================
-# Niriksha Backend — Python Requirements
+# Niriksha Backend — Python Requirements (v2)
 # ============================================================
 
 # ── Web Framework ────────────────────────────────────────────
@@ -9,13 +9,29 @@ python-multipart==0.0.9
 
 # ── AI / Computer Vision ─────────────────────────────────────
 opencv-python>=4.10.0.84
-mediapipe==0.10.30
+mediapipe==0.10.14
 ultralytics==8.1.42          # YOLOv8 (downloads yolov8n.pt on first use)
 numpy>=1.26.4
 
+# ── Face Recognition (for identity verification) ─────────────
+deepface>=0.0.90              # Face embedding extraction (uses opencv backend)
+tf-keras>=2.15.0              # Required by deepface (TF2 compatibility layer)
+
 # ── Database ─────────────────────────────────────────────────
 motor==3.4.0                  # Async MongoDB driver
-pymongo==4.7.1
+pymongo[srv]==4.7.1           # Sync client (needed by Motor internally)
+
+# ── Authentication ─────────────────────────────────────────────
+passlib[bcrypt]==1.7.4        # Password hashing
+python-jose[cryptography]==3.3.0  # JWT encoding/decoding
+bcrypt==4.1.2                 # Bcrypt backend
+
+# ── Rate Limiting ─────────────────────────────────────────────
+slowapi==0.1.9                # Fast API rate limiting (starlette-compatible)
+limits==3.7.0                 # Backend for slowapi
+
+# ── AI Reporting ─────────────────────────────────────────────
+anthropic>=0.28.0             # Anthropic Claude API client
 
 # ── Utilities ─────────────────────────────────────────────────
 python-dotenv==1.0.1
