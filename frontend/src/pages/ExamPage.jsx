@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { AnimatePresence ,motion} from 'framer-motion'
+import { AnimatePresence ,motion} from 'framer-motion' // eslint-disable-line no-unused-vars
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import Webcam from 'react-webcam'
 import {
   ShieldCheckIcon,
+  EyeIcon,
   ExclamationTriangleIcon,
   ClockIcon,
   UserCircleIcon,
@@ -95,6 +96,7 @@ export default function ExamPage() {
   const [answers, setAnswers]       = useState({})
   const [timeLeft, setTimeLeft]     = useState(45 * 60) // 45 min
   const [examStarted, setExamStarted] = useState(false)
+  const [isStartAnimating, setIsStartAnimating] = useState(false)
   const [submitted, setSubmitted]   = useState(false)
 
   // AI monitoring state
@@ -127,7 +129,7 @@ export default function ExamPage() {
     })
   }, [isFlagged])
 
-  useBrowserMonitor(addBehaviorEvent)
+  const requestExamFullscreen = useBrowserMonitor(addBehaviorEvent, examStarted)
 
   // ── Send webcam frames to backend for AI analysis ──
   useEffect(() => {
@@ -262,6 +264,20 @@ export default function ExamPage() {
     }
   }
 
+  const handleStartExam = async () => {
+    if (isStartAnimating) return
+
+    requestExamFullscreen()
+    setIsStartAnimating(true)
+    await startExamSession()
+
+    // Let the eye zoom sequence complete before rendering the exam UI.
+    setTimeout(() => {
+      setExamStarted(true)
+      setIsStartAnimating(false)
+    }, 1300)
+  }
+
   const handleSelect = (optIdx) => {
     setAnswers(prev => ({ ...prev, [currentQ]: optIdx }))
   }
@@ -283,8 +299,7 @@ export default function ExamPage() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: 'radial-gradient(ellipse at center, #0f172a 0%, #030712 100%)' }}
+        className="min-h-screen flex items-center justify-center app-page-bg-center"
       >
         <motion.div
           initial={{ y: 30, opacity: 0 }}
@@ -317,21 +332,59 @@ export default function ExamPage() {
           <motion.button
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
-            onClick={async () => {
-              await startExamSession()
-              setExamStarted(true)
-            }}
-            className="btn-primary w-full py-4 text-base glow-blue"
+            onClick={handleStartExam}
+            disabled={isStartAnimating}
+            className="btn-primary w-full py-4 text-base glow-blue disabled:opacity-70"
           >
-            Start Exam Session
+            {isStartAnimating ? 'Starting Exam...' : 'Start Exam Session'}
           </motion.button>
           <button
+            type="button"
             onClick={() => navigate('/')}
+            disabled={isStartAnimating}
             className="mt-4 text-sm text-gray-500 hover:text-gray-300 transition-colors"
           >
             ← Back to Home
           </button>
         </motion.div>
+
+        <AnimatePresence>
+          {isStartAnimating && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950"
+            >
+              <motion.div
+                className="absolute inset-0"
+                style={{
+                  background:
+                    'radial-gradient(circle at center, rgba(6,182,212,0.25) 0%, rgba(2,6,23,0.98) 60%)',
+                }}
+                initial={{ opacity: 0.3, scale: 0.85 }}
+                animate={{ opacity: 1, scale: 1.2 }}
+                transition={{ duration: 1.2, ease: 'easeOut' }}
+              />
+
+              <motion.div
+                className="relative z-10"
+                initial={{ opacity: 0, scale: 0.35 }}
+                animate={{ opacity: [0, 1, 0.9], scale: [0.35, 1.2, 2.4] }}
+                transition={{ duration: 1.2, ease: 'easeInOut' }}
+              >
+                <EyeIcon className="w-28 h-28 text-cyan-300 drop-shadow-[0_0_25px_rgba(34,211,238,0.9)]" />
+              </motion.div>
+
+              <motion.div
+                className="absolute w-28 h-28 rounded-full border border-cyan-300/80"
+                initial={{ scale: 0.3, opacity: 0.8 }}
+                animate={{ scale: 7, opacity: 0 }}
+                transition={{ duration: 1.2, ease: 'easeOut' }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     )
   }
@@ -343,8 +396,7 @@ export default function ExamPage() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: 'radial-gradient(ellipse at center, #0f172a 0%, #030712 100%)' }}
+        className="min-h-screen flex items-center justify-center app-page-bg-center"
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
@@ -388,8 +440,7 @@ export default function ExamPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen flex flex-col"
-      style={{ background: '#030712' }}
+      className="min-h-screen flex flex-col app-page-bg"
     >
       {/* ── Top Bar ── */}
       <div className="glass-dark border-b border-white/05 px-6 py-3 flex items-center justify-between z-20">
@@ -410,7 +461,7 @@ export default function ExamPage() {
         <div className="flex items-center gap-4">
           {/* Cheat score indicator */}
           <div className="flex items-center gap-2">
-            <div className="text-xs text-gray-400">Integrity:</div>
+            <div className="text-xs text-gray-400">Cheating Score</div>
             <div className="w-24 h-2 rounded-full bg-dark-600 overflow-hidden">
               <motion.div
                 className="h-full rounded-full"

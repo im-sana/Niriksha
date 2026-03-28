@@ -12,7 +12,7 @@ import { useEffect, useRef, useCallback } from 'react'
  *
  * @param {Function} onEvent - callback(type, message) called on each detection
  */
-export default function useBrowserMonitor(onEvent) {
+export default function useBrowserMonitor(onEvent, enabled = true) {
   const onEventRef = useRef(onEvent)
 
   useEffect(() => {
@@ -23,7 +23,15 @@ export default function useBrowserMonitor(onEvent) {
     onEventRef.current?.(type, message)
   }, [])
 
+  const requestExamFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {})
+    }
+  }, [])
+
   useEffect(() => {
+    if (!enabled) return
+
     // ── 1. Tab visibility (tab switch) ──
     const handleVisibility = () => {
       if (document.hidden) {
@@ -69,23 +77,13 @@ export default function useBrowserMonitor(onEvent) {
     const handleContextMenu = (e) => e.preventDefault()
     document.addEventListener('contextmenu', handleContextMenu)
 
-    // ── 5. Fullscreen enforcement & exit detection ──
-    const requestFullscreen = () => {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen?.().catch(() => {})
-      }
-    }
+    // ── 5. Fullscreen exit detection ──
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) {
         report('tab_switch', 'Exited fullscreen mode')
-        // Re-request after brief delay
-        setTimeout(requestFullscreen, 1000)
       }
     }
     document.addEventListener('fullscreenchange', handleFullscreenChange)
-
-    // Try to enter fullscreen on mount
-    requestFullscreen()
 
     // ── 6. Multi-monitor detection ──
     const checkMultiMonitor = () => {
@@ -111,5 +109,7 @@ export default function useBrowserMonitor(onEvent) {
       document.removeEventListener('contextmenu', handleContextMenu)
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
     }
-  }, [report])
+  }, [enabled, report])
+
+  return requestExamFullscreen
 }

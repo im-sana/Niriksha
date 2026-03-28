@@ -1,7 +1,7 @@
 import { useNavigate, } from 'react-router-dom'
 import { useAuthContext } from '../context/AuthContext'
 import toast from 'react-hot-toast'
-import { motion } from 'framer-motion'
+import { motion } from 'framer-motion' // eslint-disable-line no-unused-vars
 
 import {
   ShieldCheckIcon,
@@ -36,7 +36,7 @@ export default function Sidebar({ active }) {
 
   return (
     <aside className="w-16 md:w-60 flex flex-col border-r border-white/05 flex-shrink-0"
-           style={{ background: 'rgba(10,15,30,0.6)', backdropFilter: 'blur(20px)' }}>
+           style={{ background: 'var(--glass-dark-bg)', backdropFilter: 'blur(20px)' }}>
       
       {/* Logo */}
       <div className="p-4 border-b border-white/05">

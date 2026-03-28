@@ -7,27 +7,39 @@
  *  - New login, signup, face-verify, result pages
  *  - AnimatePresence for smooth page transitions
  */
+import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { ErrorBoundary } from 'react-error-boundary'
+import { useTheme } from './context/ThemeContext'
 
-// Pages
-import LandingPage     from './pages/LandingPage'
-import LoginPage       from './pages/LoginPage'
-import SignupPage      from './pages/SignupPage'
-import FaceVerifyPage  from './pages/FaceVerifyPage'
-import ExamPage        from './pages/ExamPage'
-import ResultPage      from './pages/ResultPage'
-import DashboardPage   from './pages/DashboardPage'
-import AdminPage       from './pages/AdminPage'
+// Route-level lazy imports keep the initial bundle lean.
+const LandingPage = lazy(() => import('./pages/LandingPage'))
+const LoginPage = lazy(() => import('./pages/LoginPage'))
+const SignupPage = lazy(() => import('./pages/SignupPage'))
+const FaceVerifyPage = lazy(() => import('./pages/FaceVerifyPage'))
+const ExamPage = lazy(() => import('./pages/ExamPage'))
+const ResultPage = lazy(() => import('./pages/ResultPage'))
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const AdminPage = lazy(() => import('./pages/AdminPage'))
 
 // Auth
 import ProtectedRoute  from './components/ProtectedRoute'
 
 // Error Fallback
 function ErrorFallback({ error, resetErrorBoundary }) {
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
+
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: '#030712' }}>
+    <div
+      className="min-h-screen flex items-center justify-center"
+      style={{
+        background: isDark
+          ? 'radial-gradient(ellipse at top, #0f172a 0%, #030712 70%)'
+          : 'radial-gradient(ellipse at top, #dbeafe 0%, #f8fafc 72%)',
+      }}
+    >
       <div className="glass-card p-8 max-w-md text-center">
         <div className="text-4xl mb-4">⚠️</div>
         <h2 className="text-xl font-bold text-white mb-2">Something went wrong</h2>
@@ -39,46 +51,64 @@ function ErrorFallback({ error, resetErrorBoundary }) {
 }
 
 function App() {
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
+
   return (
-    <AnimatePresence mode="wait">
-      <Routes>
-        {/* Public routes */}
-        <Route path="/"         element={<LandingPage />} />
-        <Route path="/login"    element={<LoginPage />} />
-        <Route path="/signup"   element={<SignupPage />} />
+    <>
+      <AnimatePresence mode="wait">
+      <Suspense
+        fallback={
+          <div
+            className="min-h-screen"
+            style={{
+              background: isDark
+                ? 'radial-gradient(ellipse at top, #0f172a 0%, #030712 70%)'
+                : 'radial-gradient(ellipse at top, #dbeafe 0%, #f8fafc 72%)',
+            }}
+          />
+        }
+      >
+        <Routes>
+          {/* Public routes */}
+          <Route path="/"         element={<LandingPage />} />
+          <Route path="/login"    element={<LoginPage />} />
+          <Route path="/signup"   element={<SignupPage />} />
 
-        {/* Student routes (require auth) */}
-        <Route path="/face-verify" element={
-          <ProtectedRoute requiredRole="student">
-            <FaceVerifyPage />
-          </ProtectedRoute>
-        } />
-        <Route path="/exam" element={
-          <ProtectedRoute>
-            <ErrorBoundary FallbackComponent={ErrorFallback}>
-              <ExamPage />
-            </ErrorBoundary>
-          </ProtectedRoute>
-        } />
-        <Route path="/result" element={
-          <ProtectedRoute>
-            <ResultPage />
-          </ProtectedRoute>
-        } />
+          {/* Student routes (require auth) */}
+          <Route path="/face-verify" element={
+            <ProtectedRoute requiredRole="student">
+              <FaceVerifyPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/exam" element={
+            <ProtectedRoute>
+              <ErrorBoundary FallbackComponent={ErrorFallback}>
+                <ExamPage />
+              </ErrorBoundary>
+            </ProtectedRoute>
+          } />
+          <Route path="/result" element={
+            <ProtectedRoute>
+              <ResultPage />
+            </ProtectedRoute>
+          } />
 
-        {/* Admin routes */}
-        <Route path="/dashboard" element={
-          <ProtectedRoute requiredRole="admin">
-            <DashboardPage />
-          </ProtectedRoute>
-        } />
-        <Route path="/admin" element={
-          <ProtectedRoute requiredRole="admin">
-            <AdminPage />
-          </ProtectedRoute>
-        } />
-      </Routes>
-    </AnimatePresence>
+          {/* Admin routes */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute requiredRole="admin">
+              <DashboardPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin" element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminPage />
+            </ProtectedRoute>
+          } />
+        </Routes>
+      </Suspense>
+      </AnimatePresence>
+    </>
   )
 }
 

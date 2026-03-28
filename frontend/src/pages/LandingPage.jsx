@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthContext } from '../context/AuthContext'
 import toast from 'react-hot-toast'
-import { motion } from 'framer-motion'
+import { motion } from 'framer-motion' // eslint-disable-line no-unused-vars
 import {
   ShieldCheckIcon,
   EyeIcon,
@@ -15,6 +15,7 @@ import {
   ChevronDownIcon,
   ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline'
+import logo from '../assets/logo.svg'
 
 // ---------- Animation Variants ----------
 const fadeUp = {
@@ -148,9 +149,7 @@ export default function LandingPage() {
     >
       {/* ── Background mesh gradient ── */}
       <div className="fixed inset-0 z-0"
-        style={{
-          background: 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59,130,246,0.15) 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 80% 80%, rgba(139,92,246,0.1) 0%, transparent 60%), #030712'
-        }}
+        style={{ background: 'var(--landing-bg)' }}
       />
 
       {/* ── Floating orbs ── */}
@@ -160,13 +159,19 @@ export default function LandingPage() {
 
       {/* ── Navbar ── */}
       <nav className="relative z-50 flex items-center justify-between px-8 py-5 glass-dark border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center"
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="flex items-center gap-3 transition-opacity hover:opacity-90"
+          aria-label="Go to home"
+        >
+          {/* <div className="w-9 h-9 rounded-lg flex items-center justify-center"
                style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}>
-            <ShieldCheckIcon className="w-5 h-5 text-white" />
-          </div>
+            <ShieldCheckIcon className="w-5 h-5 keep-white" />
+          </div> */}
+          <img src={logo} alt="Niriksha Logo" className="w-10 h-10 rounded-lg" />
           <span className="text-xl font-bold gradient-text">Niriksha</span>
-        </div>
+        </button>
         <div className="hidden md:flex items-center gap-8 text-sm text-gray-400">
           <a href="#features" className="hover:text-blue-400 transition-colors">Features</a>
           <a href="#how-it-works" className="hover:text-blue-400 transition-colors">How It Works</a>
@@ -179,7 +184,7 @@ export default function LandingPage() {
                 onClick={() => setIsProfileOpen((open) => !open)}
                 className="flex items-center gap-2 px-3 py-2 rounded-xl glass border border-white/10 hover:border-blue-500/40 transition-all"
               >
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold keep-white"
                      style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}>
                   {avatarLabel}
                 </div>
@@ -261,7 +266,7 @@ export default function LandingPage() {
           Intelligent Exam
           <br />
           <span className="gradient-text text-glow-blue">Monitoring</span>
-          <span className="text-white"> Reimagined</span>
+          <span className="text-slate-900 dark:text-white"> Reimagined</span>
         </motion.h1>
 
         <motion.p
@@ -438,10 +443,11 @@ export default function LandingPage() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
-          className="max-w-4xl mx-auto gradient-border p-12 text-center"
+          className="max-w-4xl mx-auto gradient-border p-12 text-center
+          "
         >
-          <h2 className="text-3xl font-bold mb-4">Ready to Secure Your Exams?</h2>
-          <p className="text-gray-400 mb-8">
+          <h2 className="text-3xl font-bold mb-4   ">Ready to Secure Your Exams?</h2>
+          <p className="text-gray-400 mb-8 ">
             Launch the monitored exam interface or explore the real-time monitoring dashboard.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

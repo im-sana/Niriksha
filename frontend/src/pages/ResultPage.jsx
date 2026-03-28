@@ -13,7 +13,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { useAuthContext } from '../context/AuthContext'
 import { examAPI, dashboardAPI } from '../api/client'
-import { motion } from 'framer-motion'
+import { motion } from 'framer-motion' // eslint-disable-line no-unused-vars
 
 function RiskBadge({ level }) {
   const styles = {
@@ -79,7 +79,7 @@ export default function ResultPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#030712' }}>
+      <div className="min-h-screen flex items-center justify-center app-page-bg">
         <div className="text-center">
           <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-gray-400 text-sm">Loading your result...</p>
@@ -90,7 +90,7 @@ export default function ResultPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#030712' }}>
+      <div className="min-h-screen flex items-center justify-center app-page-bg">
         <div className="glass-card p-8 text-center max-w-sm mx-4">
           <ExclamationTriangleIcon className="w-12 h-12 text-red-400 mx-auto mb-3" />
           <h2 className="text-lg font-bold text-white mb-2">Result Not Found</h2>
@@ -105,7 +105,7 @@ export default function ResultPage() {
   const scoreColor = pct >= 70 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#ef4444'
 
   return (
-    <div className="min-h-screen py-8 px-4" style={{ background: 'radial-gradient(ellipse at 50% 0%, #0f172a 0%, #030712 70%)' }}>
+    <div className="min-h-screen py-8 px-4 app-page-bg">
       <div className="max-w-2xl mx-auto">
 
         {/* Header */}
@@ -206,7 +206,7 @@ export default function ResultPage() {
             onClick={() => navigate('/')}
             whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
             className="flex-1 py-3 rounded-xl font-semibold text-sm"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8' }}
+            style={{ background: 'var(--surface-soft-bg)', border: '1px solid var(--surface-soft-border)', color: '#64748b' }}
           >
             ← Back Home
           </motion.button>

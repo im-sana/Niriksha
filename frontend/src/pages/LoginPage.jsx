@@ -10,7 +10,7 @@ import toast from 'react-hot-toast'
 import { ShieldCheckIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import { useAuthContext } from '../context/AuthContext'
 import { authAPI } from '../api/client'
-import { motion } from 'framer-motion'
+import { motion } from 'framer-motion' // eslint-disable-line no-unused-vars
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -55,8 +55,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center"
-         style={{ background: 'radial-gradient(ellipse at 50% 0%, #0f172a 0%, #030712 70%)' }}>
+    <div className="min-h-screen flex items-center justify-center app-page-bg">
 
       <motion.div
         initial={{ opacity: 0, y: 30 }}
@@ -125,8 +124,8 @@ export default function LoginPage() {
                     onClick={() => setForm(p => ({ ...p, role: r }))}
                     className="py-2.5 rounded-xl text-sm font-medium capitalize transition-all"
                     style={{
-                      background: form.role === r ? (r === 'admin' ? 'rgba(139,92,246,0.2)' : 'rgba(59,130,246,0.2)') : 'rgba(255,255,255,0.03)',
-                      border: form.role === r ? `1px solid ${r === 'admin' ? 'rgba(139,92,246,0.4)' : 'rgba(59,130,246,0.4)'}` : '1px solid rgba(255,255,255,0.08)',
+                      background: form.role === r ? (r === 'admin' ? 'rgba(139,92,246,0.2)' : 'rgba(59,130,246,0.2)') : 'var(--surface-soft-bg)',
+                      border: form.role === r ? `1px solid ${r === 'admin' ? 'rgba(139,92,246,0.4)' : 'rgba(59,130,246,0.4)'}` : '1px solid var(--surface-soft-border)',
                       color: form.role === r ? (r === 'admin' ? '#c4b5fd' : '#93c5fd') : '#64748b',
                     }}
                   >
@@ -173,7 +172,7 @@ export default function LoginPage() {
         </div>
 
         {/* Demo accounts hint */}
-        <div className="mt-4 p-4 rounded-xl text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="mt-4 p-4 rounded-xl text-center" style={{ background: 'var(--surface-soft-bg)', border: '1px solid var(--surface-soft-border)' }}>
           <p className="text-xs text-gray-500">
             First time? <Link to="/signup" className="text-blue-400 hover:text-blue-300">Register</Link> to create your account.
           </p>

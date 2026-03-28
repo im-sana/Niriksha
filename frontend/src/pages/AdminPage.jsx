@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AnimatePresence ,motion} from 'framer-motion'
+import { AnimatePresence ,motion} from 'framer-motion' // eslint-disable-line no-unused-vars
 import toast from 'react-hot-toast'
 import {
   PlusIcon,
@@ -100,7 +100,7 @@ export default function AdminPage() {
   ]
 
   return (
-    <div className="min-h-screen flex" style={{ background: '#030712' }}>
+    <div className="min-h-screen flex app-page-bg">
       <Sidebar active="admin" />
 
       <div className="flex-1 overflow-auto">
@@ -113,7 +113,7 @@ export default function AdminPage() {
         <div className="p-8">
           {/* Tab Nav */}
           <div className="flex gap-1 p-1 rounded-xl mb-8"
-               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            style={{ background: 'var(--surface-soft-bg)', border: '1px solid var(--surface-soft-border)' }}>
             {tabs.map(tab => (
               <button
                 key={tab.id}

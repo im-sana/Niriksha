@@ -10,7 +10,7 @@
  *   - Risk level filter chips
  */
 import { useState, useEffect, useCallback } from 'react'
-import { AnimatePresence ,motion } from 'framer-motion'
+import { AnimatePresence ,motion } from 'framer-motion' // eslint-disable-line no-unused-vars
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import ReactMarkdown from 'react-markdown'
@@ -136,7 +136,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen flex" style={{ background: '#030712' }}>
+    <div className="min-h-screen flex app-page-bg">
       <Sidebar active="dashboard" />
 
       <div className="flex-1 overflow-auto">
@@ -215,8 +215,8 @@ export default function DashboardPage() {
                   onClick={() => { setRiskFilter(r); setPage(1) }}
                   className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                   style={{
-                    background: riskFilter === r ? (RISK_COLORS[r]?.bg || 'rgba(59,130,246,0.15)') : 'rgba(255,255,255,0.03)',
-                    border: riskFilter === r ? `1px solid ${RISK_COLORS[r]?.border || 'rgba(59,130,246,0.3)'}` : '1px solid rgba(255,255,255,0.06)',
+                    background: riskFilter === r ? (RISK_COLORS[r]?.bg || 'rgba(59,130,246,0.15)') : 'var(--surface-soft-bg)',
+                    border: riskFilter === r ? `1px solid ${RISK_COLORS[r]?.border || 'rgba(59,130,246,0.3)'}` : '1px solid var(--surface-soft-border)',
                     color: riskFilter === r ? (RISK_COLORS[r]?.text || '#93c5fd') : '#64748b',
                   }}
                 >
