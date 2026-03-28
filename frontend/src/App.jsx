@@ -7,19 +7,20 @@
  *  - New login, signup, face-verify, result pages
  *  - AnimatePresence for smooth page transitions
  */
+import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { ErrorBoundary } from 'react-error-boundary'
 
-// Pages
-import LandingPage     from './pages/LandingPage'
-import LoginPage       from './pages/LoginPage'
-import SignupPage      from './pages/SignupPage'
-import FaceVerifyPage  from './pages/FaceVerifyPage'
-import ExamPage        from './pages/ExamPage'
-import ResultPage      from './pages/ResultPage'
-import DashboardPage   from './pages/DashboardPage'
-import AdminPage       from './pages/AdminPage'
+// Route-level lazy imports keep the initial bundle lean.
+const LandingPage = lazy(() => import('./pages/LandingPage'))
+const LoginPage = lazy(() => import('./pages/LoginPage'))
+const SignupPage = lazy(() => import('./pages/SignupPage'))
+const FaceVerifyPage = lazy(() => import('./pages/FaceVerifyPage'))
+const ExamPage = lazy(() => import('./pages/ExamPage'))
+const ResultPage = lazy(() => import('./pages/ResultPage'))
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const AdminPage = lazy(() => import('./pages/AdminPage'))
 
 // Auth
 import ProtectedRoute  from './components/ProtectedRoute'
@@ -41,43 +42,45 @@ function ErrorFallback({ error, resetErrorBoundary }) {
 function App() {
   return (
     <AnimatePresence mode="wait">
-      <Routes>
-        {/* Public routes */}
-        <Route path="/"         element={<LandingPage />} />
-        <Route path="/login"    element={<LoginPage />} />
-        <Route path="/signup"   element={<SignupPage />} />
+      <Suspense fallback={<div className="min-h-screen" style={{ background: '#030712' }} />}>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/"         element={<LandingPage />} />
+          <Route path="/login"    element={<LoginPage />} />
+          <Route path="/signup"   element={<SignupPage />} />
 
-        {/* Student routes (require auth) */}
-        <Route path="/face-verify" element={
-          <ProtectedRoute requiredRole="student">
-            <FaceVerifyPage />
-          </ProtectedRoute>
-        } />
-        <Route path="/exam" element={
-          <ProtectedRoute>
-            <ErrorBoundary FallbackComponent={ErrorFallback}>
-              <ExamPage />
-            </ErrorBoundary>
-          </ProtectedRoute>
-        } />
-        <Route path="/result" element={
-          <ProtectedRoute>
-            <ResultPage />
-          </ProtectedRoute>
-        } />
+          {/* Student routes (require auth) */}
+          <Route path="/face-verify" element={
+            <ProtectedRoute requiredRole="student">
+              <FaceVerifyPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/exam" element={
+            <ProtectedRoute>
+              <ErrorBoundary FallbackComponent={ErrorFallback}>
+                <ExamPage />
+              </ErrorBoundary>
+            </ProtectedRoute>
+          } />
+          <Route path="/result" element={
+            <ProtectedRoute>
+              <ResultPage />
+            </ProtectedRoute>
+          } />
 
-        {/* Admin routes */}
-        <Route path="/dashboard" element={
-          <ProtectedRoute requiredRole="admin">
-            <DashboardPage />
-          </ProtectedRoute>
-        } />
-        <Route path="/admin" element={
-          <ProtectedRoute requiredRole="admin">
-            <AdminPage />
-          </ProtectedRoute>
-        } />
-      </Routes>
+          {/* Admin routes */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute requiredRole="admin">
+              <DashboardPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin" element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminPage />
+            </ProtectedRoute>
+          } />
+        </Routes>
+      </Suspense>
     </AnimatePresence>
   )
 }
