@@ -87,6 +87,7 @@ dependencies = [
     { name = "anthropic" },
     { name = "bcrypt" },
     { name = "deepface" },
+    { name = "dlib" },
     { name = "fastapi" },
     { name = "limits" },
     { name = "mediapipe" },
@@ -110,6 +111,7 @@ requires-dist = [
     { name = "anthropic", specifier = ">=0.28.0" },
     { name = "bcrypt", specifier = "==4.1.2" },
     { name = "deepface", specifier = ">=0.0.90" },
+    { name = "dlib" },
     { name = "fastapi", specifier = "==0.110.0" },
     { name = "limits", specifier = "==3.7.0" },
     { name = "mediapipe", specifier = "==0.10.30" },
@@ -639,6 +641,12 @@ sdist = { url = "https://files.pythonhosted.org/packages/fc/f8/98eea607f65de6527
 wheels = [
     { url = "https://files.pythonhosted.org/packages/12/b3/231ffd4ab1fc9d679809f356cebee130ac7daa00d6d6f3206dd4fd137e9e/distro-1.9.0-py3-none-any.whl", hash = "sha256:7bffd925d65168f85027d8da9af6bddab658135b840670a223589bc0c8ef02b2", size = 20277, upload-time = "2023-12-24T09:54:30.421Z" },
 ]
+
+[[package]]
+name = "dlib"
+version = "20.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/28/f4/f8949b18ec1df2ef05fc2ea1d1dd82ff2d050b8704b7d0d088017315c221/dlib-20.0.0.tar.gz", hash = "sha256:9ab6a6fe113cc36a20c3f611c57fa6a07f18d1169bd04efb85c32e21b23b7d2b", size = 3310015, upload-time = "2025-05-28T01:22:16.141Z" }
 
 [[package]]
 name = "dnspython"

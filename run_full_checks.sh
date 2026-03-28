@@ -26,6 +26,22 @@ fi
 
 EXIT_CODE=0
 
+BACKEND_COMPILE_TARGETS=(
+  "$BACKEND_DIR/app.py"
+  "$BACKEND_DIR/database"
+  "$BACKEND_DIR/detection_modules"
+  "$BACKEND_DIR/middleware"
+  "$BACKEND_DIR/models"
+  "$BACKEND_DIR/routes"
+  "$BACKEND_DIR/services"
+  "$BACKEND_DIR/utils"
+  "$BACKEND_DIR/test_db.py"
+)
+
+if [[ -f "$BACKEND_DIR/main.py" ]]; then
+  BACKEND_COMPILE_TARGETS=("$BACKEND_DIR/main.py" "${BACKEND_COMPILE_TARGETS[@]}")
+fi
+
 run_step() {
   local name="$1"
   shift
@@ -50,16 +66,7 @@ echo "Using Python command: $PYTHON_CMD"
 
 run_step "Backend syntax compile" \
   "$PYTHON_CMD" -m compileall -q \
-  "$BACKEND_DIR/app.py" \
-  "$BACKEND_DIR/main.py" \
-  "$BACKEND_DIR/database" \
-  "$BACKEND_DIR/detection_modules" \
-  "$BACKEND_DIR/middleware" \
-  "$BACKEND_DIR/models" \
-  "$BACKEND_DIR/routes" \
-  "$BACKEND_DIR/services" \
-  "$BACKEND_DIR/utils" \
-  "$BACKEND_DIR/test_db.py"
+  "${BACKEND_COMPILE_TARGETS[@]}"
 
 run_step "Backend pytest" \
   "$PYTHON_CMD" -m pytest -q -p pytest_asyncio --asyncio-mode=auto "$BACKEND_DIR/test_db.py"
