@@ -1,0 +1,28 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=0.28.0",
+    "bcrypt==4.1.2",
+    "deepface>=0.0.90",
+    "dlib",
+    "fastapi==0.110.0",
+    "limits==3.7.0",
+    "mediapipe==0.10.30",
+    "motor==3.4.0",
+    "numpy>=1.26.4",
+    "opencv-python>=4.10.0.84",
+    "passlib[bcrypt]==1.7.4",
+    "pydantic>=2.7.0",
+    "pymongo[srv]==4.7.1",
+    "python-dotenv==1.0.1",
+    "python-jose[cryptography]==3.3.0",
+    "python-multipart==0.0.9",
+    "slowapi==0.1.9",
+    "tf-keras>=2.15.0",
+    "ultralytics==8.1.42",
+    "uvicorn[standard]==0.29.0",
+]

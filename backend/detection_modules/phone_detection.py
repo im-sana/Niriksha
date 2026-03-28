@@ -1,65 +1,215 @@
 """
-Phone Detection Module — YOLOv8 Object Detection
-==================================================
-Detects mobile phones in the exam frame using YOLOv8.
-COCO class index for "cell phone" = 67.
+Phone Detection Module - YOLO-based mobile phone detection.
 
-Detecting a phone is a strong cheating signal (+10 score).
+Loads a local YOLO weights file in a cross-platform way and fails open
+when the model or runtime dependencies are unavailable.
 """
-from dataclasses import dataclass, field
-from typing import List
+
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
+import os
+
 import numpy as np
 
 try:
+    import cv2
+    CV2_AVAILABLE = True
+except Exception:
+    cv2 = None
+    CV2_AVAILABLE = False
+
+try:
+    import torch
+except Exception:
+    torch = None
+
+try:
     from ultralytics import YOLO
-    _model = YOLO("yolov8n.pt")  # shared model (same file, different class filter)
     YOLO_AVAILABLE = True
 except Exception:
+    YOLO = None
     YOLO_AVAILABLE = False
-    _model = None
 
 
 @dataclass
 class PhoneDetectionResult:
-    detected:    bool
-    confidence:  float = 0.0
-    boxes:       List  = field(default_factory=list)
-
-
-# COCO class 67 = "cell phone"
-PHONE_CLASS  = 67
-CONFIDENCE   = 0.40
+    detected: bool
+    confidence: float = 0.0
+    bbox: Optional[tuple] = None  # (x1, y1, x2, y2)
 
 
 class PhoneDetector:
-    """
-    Detects mobile phones using YOLOv8 object detection.
-    Lower confidence threshold (0.40) to catch partially visible phones.
-    """
+    """Detect mobile phones in a frame using a local YOLO model."""
+
+    CONFIDENCE_THRESHOLD = 0.8
+    PHONE_CLASS_INDEX = 67  # COCO class id for 'cell phone'
+
+    def __init__(self, model_path: Optional[str] = None):
+        self._model = None
+        self._device = "cpu"
+        self._model_path = self._resolve_model_path(model_path)
+        self._phone_class_index = self.PHONE_CLASS_INDEX
+        self._initialize_model()
+
+    def _resolve_model_path(self, model_path: Optional[str]) -> Optional[Path]:
+        """Resolve model path from explicit arg, env var, or backend default."""
+        if model_path:
+            return Path(model_path)
+
+        env_model_path = os.getenv("YOLO_PHONE_MODEL_PATH")
+        if env_model_path:
+            return Path(env_model_path)
+
+        backend_root = Path(__file__).resolve().parent.parent
+        for name in ("yolov8n.pt", "yolo26n.pt", "best_yolov8.pt"):
+            candidate = backend_root / name
+            if candidate.exists():
+                return candidate
+        return backend_root / "yolov8n.pt"
+
+    def _candidate_model_paths(self) -> list[Path]:
+        """Return model candidates in fallback order."""
+        if self._model_path is not None:
+            primary = self._model_path
+        else:
+            primary = Path("yolov8n.pt")
+
+        backend_root = Path(__file__).resolve().parent.parent
+        candidates = [
+            primary,
+            backend_root / "yolov8n.pt",
+            backend_root / "yolo26n.pt",
+            backend_root / "best_yolov8.pt",
+        ]
+
+        seen = set()
+        ordered = []
+        for p in candidates:
+            key = str(p)
+            if key in seen:
+                continue
+            seen.add(key)
+            ordered.append(p)
+        return ordered
+
+    def _build_model(self):
+        """Load YOLO while handling torch>=2.6 weights_only default for trusted local weights."""
+        if torch is None:
+            return YOLO(str(self._model_path))
+
+        original_torch_load = torch.load
+
+        def _torch_load_compat(*args, **kwargs):
+            kwargs.setdefault("weights_only", False)
+            return original_torch_load(*args, **kwargs)
+
+        try:
+            torch.load = _torch_load_compat
+            return YOLO(str(self._model_path))
+        finally:
+            torch.load = original_torch_load
+
+    def _infer_phone_class_index(self) -> int:
+        """Infer phone class index from YOLO class names; fallback to COCO id."""
+        try:
+            names = getattr(self._model.model, "names", None)
+            if names is None:
+                names = getattr(self._model, "names", None)
+            if isinstance(names, dict):
+                iterable = names.items()
+            elif isinstance(names, list):
+                iterable = enumerate(names)
+            else:
+                return self.PHONE_CLASS_INDEX
+
+            for idx, name in iterable:
+                label = str(name).lower().strip()
+                if label in {"cell phone", "cellphone", "mobile phone", "phone"}:
+                    return int(idx)
+        except Exception:
+            pass
+        return self.PHONE_CLASS_INDEX
+
+    def _initialize_model(self) -> None:
+        """Initialize YOLO model. Keep detector alive even if load fails."""
+        if not YOLO_AVAILABLE:
+            self._model = None
+            return
+
+        self._model = None
+        for candidate in self._candidate_model_paths():
+            self._model_path = candidate
+            if candidate.exists():
+                try:
+                    self._model = self._build_model()
+                    break
+                except Exception:
+                    self._model = None
+                    continue
+            else:
+                # Allow auto-download on named models like yolov8n.pt
+                try:
+                    self._model = self._build_model()
+                    break
+                except Exception:
+                    self._model = None
+                    continue
+
+        if self._model is None:
+            return
+
+        try:
+            if torch is not None and torch.cuda.is_available():
+                self._device = "cuda"
+            self._model.to(self._device)
+        except Exception:
+            self._model = None
+            return
+
+        self._phone_class_index = self._infer_phone_class_index()
 
     def detect(self, frame: np.ndarray) -> PhoneDetectionResult:
-        """
-        Args:
-            frame: BGR numpy array.
-        Returns:
-            PhoneDetectionResult with detected flag.
-        """
-        if not YOLO_AVAILABLE or _model is None:
+        """Run phone detection on a BGR frame and return a structured result."""
+        if (
+            self._model is None
+            or not CV2_AVAILABLE
+            or frame is None
+            or not isinstance(frame, np.ndarray)
+            or frame.size == 0
+        ):
             return PhoneDetectionResult(detected=False)
 
-        results = _model(frame, verbose=False, conf=CONFIDENCE, classes=[PHONE_CLASS])
-        boxes = []
-        max_conf = 0.0
+        best_conf = 0.0
+        best_bbox = None
 
-        for r in results:
-            for box in r.boxes:
-                if int(box.cls[0]) == PHONE_CLASS:
-                    conf = float(box.conf[0])
-                    max_conf = max(max_conf, conf)
-                    boxes.append(box.xyxy[0].tolist() + [conf])
+        try:
+            results = self._model(frame, verbose=False)
+        except Exception:
+            return PhoneDetectionResult(detected=False)
+
+        for result in results:
+            for box in result.boxes:
+                conf = float(box.conf[0].item())
+                cls = int(box.cls[0].item())
+
+                if conf < self.CONFIDENCE_THRESHOLD or cls != self._phone_class_index:
+                    continue
+
+                if conf > best_conf:
+                    x1, y1, x2, y2 = map(int, box.xyxy[0])
+                    best_conf = conf
+                    best_bbox = (x1, y1, x2, y2)
 
         return PhoneDetectionResult(
-            detected=len(boxes) > 0,
-            confidence=max_conf,
-            boxes=boxes,
+            detected=best_bbox is not None,
+            confidence=best_conf,
+            bbox=best_bbox,
         )
+
+
+def process_mobile_detection(frame):
+    """Backward-compatible helper used by older callers."""
+    detector = PhoneDetector()
+    result = detector.detect(frame)
+    return frame, result.detected

@@ -1,5 +1,7 @@
-import { useNavigate, useLocation } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { useNavigate, } from 'react-router-dom'
+import { useAuthContext } from '../context/AuthContext'
+import toast from 'react-hot-toast'
+
 import {
   ShieldCheckIcon,
   HomeIcon,
@@ -23,6 +25,13 @@ const NAV_ITEMS = [
  */
 export default function Sidebar({ active }) {
   const navigate = useNavigate()
+  const { logout } = useAuthContext()
+
+  const handleLogout = () => {
+    logout()
+    toast.success('Logged out successfully')
+    navigate('/')
+  }
 
   return (
     <aside className="w-16 md:w-60 flex flex-col border-r border-white/05 flex-shrink-0"
@@ -73,7 +82,7 @@ export default function Sidebar({ active }) {
       {/* Footer */}
       <div className="p-3 border-t border-white/05">
         <button
-          onClick={() => navigate('/')}
+          onClick={handleLogout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:text-gray-300 hover:bg-white/03 transition-all"
         >
           <ArrowRightOnRectangleIcon className="w-5 h-5 flex-shrink-0" />

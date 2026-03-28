@@ -14,7 +14,10 @@ import { useEffect, useRef, useCallback } from 'react'
  */
 export default function useBrowserMonitor(onEvent) {
   const onEventRef = useRef(onEvent)
-  onEventRef.current = onEvent
+
+  useEffect(() => {
+    onEventRef.current = onEvent
+  }, [onEvent])
 
   const report = useCallback((type, message) => {
     onEventRef.current?.(type, message)
@@ -42,7 +45,7 @@ export default function useBrowserMonitor(onEvent) {
       { ctrl: true,  key: 'N' },  // new window
       { ctrl: true,  key: 'Tab' }, // cycle tabs
       { alt:  true,  key: 'Tab' }, // Alt+Tab
-      { meta: true,  key: 'Tab' }, // Cmd+Tab (mac)
+      { meta: true,  key: 'Tab' } ,       // Cmd+Tab (mac)
       { key: 'F12' },              // DevTools
       { ctrl: true, shift: true, key: 'I' }, // DevTools
     ]
@@ -53,8 +56,7 @@ export default function useBrowserMonitor(onEvent) {
         const altOk  = combo.alt   ? e.altKey   : true
         const metaOk = combo.meta  ? e.metaKey  : true
         const keyOk  = e.key === combo.key || e.key?.toUpperCase() === combo.key
-        const allMods = (!combo.ctrl || e.ctrlKey) && (!combo.alt || e.altKey)
-        return allMods && keyOk
+        return ctrlOk && altOk && metaOk && keyOk
       })
       if (matchesBlock) {
         e.preventDefault()
@@ -92,7 +94,9 @@ export default function useBrowserMonitor(onEvent) {
         if (window.screen.width > window.innerWidth * 1.8) {
           report('tab_switch', 'Multiple monitors detected')
         }
-      } catch {}
+      } catch {
+        // Silently ignore errors from accessing screen properties
+      }
     }
     checkMultiMonitor()
 

@@ -1,5 +1,8 @@
-import { motion } from 'framer-motion'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuthContext } from '../context/AuthContext'
+import toast from 'react-hot-toast'
+import { motion } from 'framer-motion'
 import {
   ShieldCheckIcon,
   EyeIcon,
@@ -9,6 +12,8 @@ import {
   WifiIcon,
   ChartBarIcon,
   LockClosedIcon,
+  ChevronDownIcon,
+  ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline'
 
 // ---------- Animation Variants ----------
@@ -109,6 +114,30 @@ const stats = [
 
 export default function LandingPage() {
   const navigate = useNavigate()
+  const { isAuthenticated, user, logout } = useAuthContext()
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const dropdownRef = useRef(null)
+
+  // const profilePath = user?.role === 'admin' ? '/dashboard' : '/face-verify'
+  const avatarLabel = user?.name?.trim()?.charAt(0)?.toUpperCase() || 'U'
+
+  useEffect(() => {
+    const onMouseDown = (event) => {
+      if (!dropdownRef.current?.contains(event.target)) {
+        setIsProfileOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
+
+  const handleLogout = () => {
+    logout()
+    toast.success('Logged out successfully')
+    setIsProfileOpen(false)
+    navigate('/')
+  }
 
   return (
     <motion.div
@@ -130,7 +159,7 @@ export default function LandingPage() {
       <FloatingOrb className="w-80 h-80 bg-cyan-500 bottom-20 left-1/3" />
 
       {/* ── Navbar ── */}
-      <nav className="relative z-10 flex items-center justify-between px-8 py-5 glass-dark border-b border-white/5">
+      <nav className="relative z-50 flex items-center justify-between px-8 py-5 glass-dark border-b border-white/5">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg flex items-center justify-center"
                style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}>
@@ -142,14 +171,66 @@ export default function LandingPage() {
           <a href="#features" className="hover:text-blue-400 transition-colors">Features</a>
           <a href="#how-it-works" className="hover:text-blue-400 transition-colors">How It Works</a>
           <button onClick={() => navigate('/dashboard')} className="hover:text-blue-400 transition-colors">Dashboard</button>
-          <button onClick={() => navigate('/admin')} className="hover:text-blue-400 transition-colors">Admin</button>
         </div>
-        <button
-          onClick={() => navigate('/exam')}
-          className="btn-primary text-sm"
-        >
-          Launch Exam
-        </button>
+        <div className="flex items-center gap-4">
+          {isAuthenticated ? (
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setIsProfileOpen((open) => !open)}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl glass border border-white/10 hover:border-blue-500/40 transition-all"
+              >
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                     style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}>
+                  {avatarLabel}
+                </div>
+                <span className="hidden sm:block text-sm text-gray-200 max-w-28 truncate">{user?.name || 'User'}</span>
+                <ChevronDownIcon className="w-4 h-4 text-gray-400" />
+              </button>
+
+              {isProfileOpen && (
+                <div
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="absolute right-0 mt-2 w-52 glass-card border border-white/10 rounded-xl p-2 z-30 pointer-events-auto"
+                >
+                  <div className="px-3 py-2 border-b border-white/10 mb-1">
+                    <p className="text-xs text-gray-500">Signed in as</p>
+                    <p className="text-sm text-white font-medium truncate">{user?.name}</p>
+                  </div>
+
+                  {/* <button
+                    onClick={handleProfileClick}
+                    className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-200 hover:bg-white/5 transition-colors"
+                  >
+                    Profile
+                  </button> */}
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                  >
+                    <ArrowRightOnRectangleIcon className="w-4 h-4" />
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={() => navigate('/login')}
+                className="text-sm font-medium text-gray-300 hover:text-white transition-colors"
+              >
+                Log In
+              </button>
+              <button
+                onClick={() => navigate('/signup')}
+                className="btn-primary text-sm px-5 py-2"
+              >
+                Sign Up
+              </button>
+            </>
+          )}
+        </div>
       </nav>
 
       {/* ── Hero Section ── */}

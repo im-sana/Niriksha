@@ -1,376 +1,416 @@
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+/**
+ * Niriksha — Advanced Teacher Dashboard
+ * =======================================
+ * Fetches REAL data from backend API (no more mock data).
+ * Features:
+ *   - Overview stats cards
+ *   - Student result table with search, filter, sort
+ *   - Claude AI report modal per student
+ *   - Screenshot preview
+ *   - Risk level filter chips
+ */
+import { useState, useEffect, useCallback } from 'react'
+import { AnimatePresence ,motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
+import ReactMarkdown from 'react-markdown'
 import {
-  LineChart, Line, AreaChart, Area, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-} from 'recharts'
-import {
-  ShieldCheckIcon,
-  UsersIcon,
-  ExclamationTriangleIcon,
-  ChartBarIcon,
-  BellIcon,
-  CameraIcon,
-  ArrowLeftIcon,
-  XMarkIcon,
+  UsersIcon, ExclamationTriangleIcon, ShieldCheckIcon,
+  ChartBarIcon, MagnifyingGlassIcon, XMarkIcon,
+  ArrowUpIcon, ArrowDownIcon, DocumentTextIcon,
+  ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline'
 import Sidebar from '../components/Sidebar'
+import { useAuthContext } from '../context/AuthContext'
+import { dashboardAPI } from '../api/client'
 
-// ── Mock data for demonstration ──
-const MOCK_STUDENTS = [
-  { id: 's1', name: 'Alice Johnson',   score: 8,  status: 'clean',   behaviors: ['Look Right x1'],      exam: 'CS101' },
-  { id: 's2', name: 'Bob Smith',       score: 22, status: 'flagged', behaviors: ['Phone Detected', 'Tab Switch x2', 'Face Missing x3'], exam: 'CS101' },
-  { id: 's3', name: 'Carol Williams',  score: 5,  status: 'clean',   behaviors: ['Look Left x1'],       exam: 'CS101' },
-  { id: 's4', name: 'David Brown',     score: 17, status: 'flagged', behaviors: ['multiple_faces', 'Look Down x4'], exam: 'CS101' },
-  { id: 's5', name: 'Emma Davis',      score: 3,  status: 'clean',   behaviors: [],                     exam: 'CS101' },
-  { id: 's6', name: 'Frank Miller',    score: 31, status: 'flagged', behaviors: ['Phone x2', 'Tab Switch x3', 'Face Missing x5'], exam: 'CS101' },
-]
-
-const MOCK_CHART_DATA = [
-  { time: '10:00', alice: 0,  bob: 0,  carol: 0,  david: 0  },
-  { time: '10:05', alice: 2,  bob: 5,  carol: 0,  david: 2  },
-  { time: '10:10', alice: 2,  bob: 10, carol: 3,  david: 5  },
-  { time: '10:15', alice: 4,  bob: 15, carol: 3,  david: 10 },
-  { time: '10:20', alice: 6,  bob: 22, carol: 5,  david: 17 },
-  { time: '10:25', alice: 8,  bob: 25, carol: 5,  david: 17 },
-]
-
-const MOCK_ALERTS = [
-  { id: 1, student: 'Bob Smith',    type: 'Phone Detected',    time: '10:14:23', severity: 'high' },
-  { id: 2, student: 'David Brown',  type: 'Multiple Faces',    time: '10:11:07', severity: 'high' },
-  { id: 3, student: 'Frank Miller', type: 'Tab Switch',        time: '10:09:55', severity: 'medium' },
-  { id: 4, student: 'Bob Smith',    type: 'Tab Switch',        time: '10:08:33', severity: 'medium' },
-  { id: 5, student: 'Frank Miller', type: 'Face Missing',      time: '10:07:12', severity: 'high' },
-  { id: 6, student: 'Alice Johnson','type': 'Look Right',      time: '10:06:45', severity: 'low' },
-]
-
-const BEHAVIOR_TIMELINE_DATA = [
-  { behavior: 'Eye Move', count: 18 },
-  { behavior: 'Head Turn', count: 12 },
-  { behavior: 'Tab Switch', count: 8 },
-  { behavior: 'Face Missing', count: 6 },
-  { behavior: 'Phone', count: 3 },
-  { behavior: 'Multi Face', count: 2 },
-]
-
-const severityMap = {
-  high:   { badge: 'badge-danger',  dot: 'danger' },
-  medium: { badge: 'badge-warning', dot: 'warning' },
-  low:    { badge: 'badge-info',    dot: 'active' },
+const RISK_COLORS = {
+  Low:    { bg: 'rgba(16,185,129,0.15)',  border: 'rgba(16,185,129,0.3)',  text: '#10b981'  },
+  Medium: { bg: 'rgba(245,158,11,0.15)',  border: 'rgba(245,158,11,0.3)',  text: '#f59e0b'  },
+  High:   { bg: 'rgba(239,68,68,0.15)',   border: 'rgba(239,68,68,0.3)',   text: '#ef4444'  },
 }
 
-const statusColor = (score) => score >= 15 ? '#ef4444' : score >= 8 ? '#f59e0b' : '#10b981'
-
-// Custom tooltip for charts
-function CustomTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null
+function StatCard({ label, value, icon: Icon, color, delay = 0 }) { // eslint-disable-line no-unused-vars
   return (
-    <div className="glass-dark p-3 rounded-xl border border-white/10 text-xs">
-      <div className="text-gray-400 mb-2">{label}</div>
-      {payload.map((p, i) => (
-        <div key={i} style={{ color: p.color }}>{p.name}: {p.value}</div>
-      ))}
-    </div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay }}
+      className="glass-card p-5 hover:border-blue-500/20 transition-all"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${color}20` }}>
+          <Icon className="w-5 h-5" style={{ color }} />
+        </div>
+        <span className="text-xs text-gray-500">{label}</span>
+      </div>
+      <div className="text-3xl font-black" style={{ color }}>{value ?? '—'}</div>
+    </motion.div>
   )
 }
 
 export default function DashboardPage() {
   const navigate = useNavigate()
-  const [selectedStudent, setSelectedStudent] = useState(null)
-  const [alertCount, setAlertCount]           = useState(MOCK_ALERTS.length)
-  const [liveAlerts, setLiveAlerts]           = useState(MOCK_ALERTS)
-  const [activeStat, setActiveStat]           = useState('all')
+  const { user, logout } = useAuthContext()
 
-  // Simulate real-time new alert
+  // Data state
+  const [stats,    setStats]    = useState(null)
+  const [results,  setResults]  = useState([])
+  const [total,    setTotal]    = useState(0)
+  const [pages,    setPages]    = useState(1)
+  const [loading,  setLoading]  = useState(true)
+
+  // Filter/search/sort state
+  const [search,    setSearch]    = useState('')
+  const [riskFilter,setRiskFilter]= useState('')
+  const [sortBy,    setSortBy]    = useState('timestamp')
+  const [sortOrder, setSortOrder] = useState(-1)
+  const [page,      setPage]      = useState(1)
+
+  // Modal state
+  const [selectedResult, setSelectedResult] = useState(null)
+  const [report,         setReport]         = useState(null)
+  const [reportLoading,  setReportLoading]  = useState(false)
+
+  const handleLogout = () => {
+    logout()
+    toast.success('Logged out successfully')
+    navigate('/')
+  }
+
+  // ── Fetch dashboard stats ──────────────────────────────────────
   useEffect(() => {
-    const id = setInterval(() => {
-      const names = ['Alice Johnson', 'Carol Williams', 'Emma Davis']
-      const types = ['Look Left', 'Look Right', 'Head Turn']
-      const newAlert = {
-        id: Date.now(),
-        student: names[Math.floor(Math.random() * names.length)],
-        type: types[Math.floor(Math.random() * types.length)],
-        time: new Date().toLocaleTimeString(),
-        severity: 'low',
-      }
-      setLiveAlerts(prev => [newAlert, ...prev].slice(0, 10))
-      setAlertCount(c => c + 1)
-    }, 8000)
-    return () => clearInterval(id)
+    dashboardAPI.stats().then(r => setStats(r.data)).catch(console.error)
   }, [])
 
-  const stats = [
-    { label: 'Total Students',  value: MOCK_STUDENTS.length,                                       icon: UsersIcon,              color: 'blue' },
-    { label: 'Flagged',         value: MOCK_STUDENTS.filter(s => s.status === 'flagged').length,   icon: ExclamationTriangleIcon, color: 'red' },
-    { label: 'Live Alerts',     value: alertCount,                                                  icon: BellIcon,               color: 'yellow' },
-    { label: 'Avg Cheat Score', value: Math.round(MOCK_STUDENTS.reduce((a,s)=>a+s.score,0)/MOCK_STUDENTS.length), icon: ChartBarIcon, color: 'purple' },
-  ]
+  // ── Fetch results (re-runs on filter change) ───────────────────
+  const fetchResults = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data } = await dashboardAPI.results({
+        search:     search || undefined,
+        risk:       riskFilter || undefined,
+        sort_by:    sortBy,
+        sort_order: sortOrder,
+        page,
+        page_size:  15,
+      })
+      setResults(data.results)
+      setTotal(data.total)
+      setPages(data.pages)
+    } catch (err) {
+      console.error('Dashboard fetch error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [search, riskFilter, sortBy, sortOrder, page])
 
-  const colorVar = { blue: '#3b82f6', red: '#ef4444', yellow: '#f59e0b', purple: '#8b5cf6', green: '#10b981', cyan: '#06b6d4' }
+  useEffect(() => { fetchResults() }, [fetchResults])
+
+  // ── Toggle sort ───────────────────────────────────────────────
+  const handleSort = (field) => {
+    if (sortBy === field) setSortOrder(o => o === -1 ? 1 : -1)
+    else { setSortBy(field); setSortOrder(-1) }
+  }
+
+  // ── Open result modal + fetch Claude report ───────────────────
+  const openReport = async (result) => {
+    setSelectedResult(result)
+    setReport(null)
+    setReportLoading(true)
+    try {
+      const { data } = await dashboardAPI.report(result.id)
+      setReport(data.report)
+    } catch {
+      setReport('Report generation failed. Please try again later.')
+    } finally {
+      setReportLoading(false)
+    }
+  }
+
+  const SortIcon = ({ field }) => {
+    if (sortBy !== field) return <span className="text-gray-600 ml-1">↕</span>
+    return sortOrder === -1
+      ? <ArrowDownIcon className="w-3 h-3 inline ml-1 text-blue-400" />
+      : <ArrowUpIcon   className="w-3 h-3 inline ml-1 text-blue-400" />
+  }
 
   return (
     <div className="min-h-screen flex" style={{ background: '#030712' }}>
       <Sidebar active="dashboard" />
 
       <div className="flex-1 overflow-auto">
-        {/* Header */}
+        {/* Top Bar */}
         <div className="glass-dark border-b border-white/05 px-8 py-4 flex items-center justify-between sticky top-0 z-10">
           <div>
             <h1 className="text-xl font-bold text-white">Monitoring Dashboard</h1>
-            <p className="text-xs text-gray-400 mt-0.5">CS101 Midterm Exam · Live Session</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Viewing as <span className="text-blue-400">{user?.name}</span> (Admin)
+            </p>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-xs">
-              <span className="status-dot active"></span>
-              <span className="text-gray-300">WebSocket Connected</span>
+              <span className="status-dot active" />
+              <span className="text-gray-300">Live</span>
             </div>
-            <span className="badge badge-danger">
-              {MOCK_STUDENTS.filter(s=>s.status==='flagged').length} Flagged
-            </span>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-red-400 transition-colors"
+            >
+              <ArrowRightOnRectangleIcon className="w-4 h-4" />
+              Logout
+            </button>
           </div>
         </div>
 
         <div className="p-8 space-y-6">
 
-          {/* ── Stats Row ── */}
+          {/* Stats Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {stats.map((stat, i) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.08 }}
-                className="glass-card p-5 hover:border-blue-500/20 transition-all group"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center"
-                       style={{ background: `${colorVar[stat.color]}20` }}>
-                    <stat.icon className="w-5 h-5" style={{ color: colorVar[stat.color] }} />
-                  </div>
-                  <span className="text-xs text-gray-500 group-hover:text-gray-400 transition-colors">{stat.label}</span>
-                </div>
-                <div className="text-3xl font-black" style={{ color: colorVar[stat.color] }}>{stat.value}</div>
-              </motion.div>
-            ))}
+            <StatCard label="Total Students"  value={stats?.total_students}   icon={UsersIcon}              color="#3b82f6" delay={0}    />
+            <StatCard label="Flagged"          value={stats?.flagged_count}    icon={ExclamationTriangleIcon} color="#ef4444" delay={0.06} />
+            <StatCard label="Avg Risk Score"   value={stats?.avg_cheat_score}  icon={ChartBarIcon}           color="#f59e0b" delay={0.12} />
+            <StatCard label="Total Exams"      value={stats?.total_exams}      icon={ShieldCheckIcon}        color="#10b981" delay={0.18} />
           </div>
 
-          {/* ── Charts Row ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Cheating Score Timeline */}
-            <div className="lg:col-span-2 glass-card p-6">
-              <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-                <ChartBarIcon className="w-4 h-4 text-blue-400" />
-                Cheating Score Timeline
-              </h3>
-              <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={MOCK_CHART_DATA}>
-                  <defs>
-                    {['bob','david','frank'].map((name, i) => (
-                      <linearGradient key={name} id={`grad${name}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={['#ef4444','#8b5cf6','#f59e0b'][i]} stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor={['#ef4444','#8b5cf6','#f59e0b'][i]} stopOpacity={0}/>
-                      </linearGradient>
-                    ))}
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="time" tick={{ fill: '#64748b', fontSize: 11 }} />
-                  <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8' }} />
-                  <Area type="monotone" dataKey="bob"   name="Bob"   stroke="#ef4444" fill="url(#gradbob)"   strokeWidth={2} />
-                  <Area type="monotone" dataKey="david" name="David" stroke="#8b5cf6" fill="url(#graddavid)" strokeWidth={2} />
-                  <Area type="monotone" dataKey="alice" name="Alice" stroke="#3b82f6" fill="none"             strokeWidth={1.5}/>
-                  <Area type="monotone" dataKey="carol" name="Carol" stroke="#10b981" fill="none"             strokeWidth={1.5}/>
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Behavior Bar Chart */}
-            <div className="glass-card p-6">
-              <h3 className="font-semibold text-white mb-4">Behavior Frequency</h3>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={BEHAVIOR_TIMELINE_DATA} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
-                  <XAxis type="number" tick={{ fill: '#64748b', fontSize: 10 }} />
-                  <YAxis dataKey="behavior" type="category" tick={{ fill: '#94a3b8', fontSize: 10 }} width={72} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="count" radius={[0,4,4,0]}>
-                    {BEHAVIOR_TIMELINE_DATA.map((_, i) => (
-                      <rect key={i} fill={`hsl(${220 + i * 20},80%,60%)`} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* ── Student List + Alerts ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-            {/* Student Table */}
-            <div className="lg:col-span-2 glass-card overflow-hidden">
-              <div className="p-5 border-b border-white/05 flex items-center justify-between">
-                <h3 className="font-semibold text-white flex items-center gap-2">
-                  <UsersIcon className="w-4 h-4 text-blue-400" />
-                  Student Monitor
-                </h3>
-                <div className="flex gap-2">
-                  {['all', 'flagged', 'clean'].map(f => (
-                    <button key={f}
-                      onClick={() => setActiveStat(f)}
-                      className={`text-xs px-3 py-1 rounded-lg capitalize transition-all ${
-                        activeStat === f
-                          ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                          : 'text-gray-500 hover:text-gray-300'
-                      }`}
-                    >
-                      {f}
-                    </button>
-                  ))}
-                </div>
+          {/* Risk breakdown pills */}
+          {stats && (
+            <div className="flex gap-3 flex-wrap">
+              <div className="glass-card px-4 py-2 text-xs flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-400" />
+                <span className="text-gray-400">Low Risk:</span>
+                <span className="text-green-400 font-bold">{stats.low_risk_count}</span>
               </div>
+              <div className="glass-card px-4 py-2 text-xs flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-yellow-400" />
+                <span className="text-gray-400">Medium Risk:</span>
+                <span className="text-yellow-400 font-bold">{stats.medium_risk_count}</span>
+              </div>
+              <div className="glass-card px-4 py-2 text-xs flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-red-400" />
+                <span className="text-gray-400">High Risk:</span>
+                <span className="text-red-400 font-bold">{stats.high_risk_count}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Search, Filter, Sort Controls */}
+          <div className="flex flex-wrap gap-3 items-center">
+            {/* Search */}
+            <div className="relative flex-1 min-w-56">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <input
+                type="text"
+                placeholder="Search by name or email..."
+                value={search}
+                onChange={e => { setSearch(e.target.value); setPage(1) }}
+                className="input-dark text-sm pl-9"
+              />
+            </div>
+
+            {/* Risk filter chips */}
+            <div className="flex gap-2">
+              {['', 'Low', 'Medium', 'High'].map(r => (
+                <button key={r}
+                  onClick={() => { setRiskFilter(r); setPage(1) }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                  style={{
+                    background: riskFilter === r ? (RISK_COLORS[r]?.bg || 'rgba(59,130,246,0.15)') : 'rgba(255,255,255,0.03)',
+                    border: riskFilter === r ? `1px solid ${RISK_COLORS[r]?.border || 'rgba(59,130,246,0.3)'}` : '1px solid rgba(255,255,255,0.06)',
+                    color: riskFilter === r ? (RISK_COLORS[r]?.text || '#93c5fd') : '#64748b',
+                  }}
+                >
+                  {r || 'All Risk'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Results Table */}
+          <div className="glass-card overflow-hidden">
+            <div className="p-5 border-b border-white/05 flex items-center justify-between">
+              <h3 className="font-semibold text-white flex items-center gap-2">
+                <UsersIcon className="w-4 h-4 text-blue-400" />
+                Student Results
+                <span className="text-xs text-gray-500 font-normal">({total} total)</span>
+              </h3>
+            </div>
+
+            {loading ? (
+              <div className="flex items-center justify-center p-12">
+                <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : results.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <UsersIcon className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p>No results found</p>
+                {(search || riskFilter) && <p className="text-xs mt-1">Try clearing filters</p>}
+              </div>
+            ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="text-xs text-gray-500 border-b border-white/05">
                       <th className="p-4 text-left">Student</th>
-                      <th className="p-4 text-left">Exam</th>
-                      <th className="p-4 text-left">Score</th>
-                      <th className="p-4 text-left">Status</th>
-                      <th className="p-4 text-left">Behaviors</th>
-                      <th className="p-4"></th>
+                      <th className="p-4 text-left cursor-pointer hover:text-gray-300 select-none" onClick={() => handleSort('exam_score')}>
+                        Score <SortIcon field="exam_score" />
+                      </th>
+                      <th className="p-4 text-left cursor-pointer hover:text-gray-300 select-none" onClick={() => handleSort('cheat_score')}>
+                        Risk Score <SortIcon field="cheat_score" />
+                      </th>
+                      <th className="p-4 text-left">Risk Level</th>
+                      <th className="p-4 text-left cursor-pointer hover:text-gray-300 select-none" onClick={() => handleSort('timestamp')}>
+                        Date <SortIcon field="timestamp" />
+                      </th>
+                      <th className="p-4 text-center">Screenshot</th>
+                      <th className="p-4" />
                     </tr>
                   </thead>
                   <tbody>
                     <AnimatePresence>
-                      {MOCK_STUDENTS
-                        .filter(s => activeStat === 'all' || s.status === activeStat)
-                        .map((student, i) => (
+                      {results.map((result, i) => {
+                        const rStyle = RISK_COLORS[result.risk_level] || RISK_COLORS.Low
+                        return (
                           <motion.tr
-                            key={student.id}
+                            key={result.id}
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            transition={{ delay: i * 0.05 }}
-                            className="border-b border-white/03 hover:bg-white/02 transition-colors cursor-pointer"
-                            onClick={() => setSelectedStudent(selectedStudent?.id === student.id ? null : student)}
+                            transition={{ delay: i * 0.03 }}
+                            className="border-b border-white/03 hover:bg-white/02 transition-colors"
                           >
                             <td className="p-4">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                                     style={{ background: `${statusColor(student.score)}20`, color: statusColor(student.score) }}>
-                                  {student.name.split(' ').map(n=>n[0]).join('')}
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                                     style={{ background: `${rStyle.text}20`, color: rStyle.text }}>
+                                  {(result.user_name || '?').split(' ').map(n => n[0]).join('').slice(0, 2)}
                                 </div>
-                                <span className="text-sm text-white">{student.name}</span>
+                                <div>
+                                  <div className="text-sm text-white font-medium">{result.user_name || 'Unknown'}</div>
+                                  <div className="text-xs text-gray-500">{result.user_email}</div>
+                                </div>
                               </div>
                             </td>
-                            <td className="p-4 text-xs text-gray-400">{student.exam}</td>
+                            <td className="p-4">
+                              <span className="text-sm font-mono font-bold text-white">
+                                {result.exam_score}/{result.total_questions}
+                              </span>
+                            </td>
                             <td className="p-4">
                               <div className="flex items-center gap-2">
-                                <div className="w-16 h-1.5 rounded-full bg-dark-600 overflow-hidden">
-                                  <div className="h-full rounded-full" style={{ background: statusColor(student.score), width: `${Math.min((student.score/30)*100,100)}%` }} />
+                                <div className="w-16 h-1.5 rounded-full bg-white/05 overflow-hidden">
+                                  <div className="h-full rounded-full" style={{
+                                    background: rStyle.text,
+                                    width: `${Math.min((result.cheat_score / 30) * 100, 100)}%`
+                                  }} />
                                 </div>
-                                <span className="text-xs font-mono font-bold" style={{ color: statusColor(student.score) }}>
-                                  {student.score}
+                                <span className="text-xs font-mono font-bold" style={{ color: rStyle.text }}>
+                                  {result.cheat_score}
                                 </span>
                               </div>
                             </td>
                             <td className="p-4">
-                              <span className={`badge ${student.status === 'flagged' ? 'badge-danger' : 'badge-safe'}`}>
-                                {student.status === 'flagged' ? '⚠ Flagged' : '✓ Clean'}
+                              <span className="px-2 py-1 rounded-lg text-xs font-medium"
+                                    style={{ background: rStyle.bg, border: `1px solid ${rStyle.border}`, color: rStyle.text }}>
+                                {result.flagged ? '⚠ ' : ''}{result.risk_level}
                               </span>
                             </td>
-                            <td className="p-4 text-xs text-gray-400">{student.behaviors.length} events</td>
+                            <td className="p-4 text-xs text-gray-500">
+                              {result.timestamp ? new Date(result.timestamp).toLocaleDateString('en-IN', {
+                                day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                              }) : '—'}
+                            </td>
+                            <td className="p-4 text-center">
+                              {result.screenshot_path ? (
+                                <a
+                                  href={dashboardAPI.screenshotUrl(result.user_id, result.screenshot_path.split('/').pop())}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-400 hover:text-blue-300"
+                                >📷 View</a>
+                              ) : <span className="text-gray-700 text-xs">—</span>}
+                            </td>
                             <td className="p-4">
-                              <button className="text-xs text-blue-400 hover:text-blue-300 transition-colors">Details</button>
+                              <motion.button
+                                onClick={() => openReport(result)}
+                                whileHover={{ scale: 1.05 }}
+                                className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-all"
+                                style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', color: '#c4b5fd' }}
+                              >
+                                <DocumentTextIcon className="w-3 h-3" />
+                                Report
+                              </motion.button>
                             </td>
                           </motion.tr>
-                        ))}
+                        )
+                      })}
                     </AnimatePresence>
                   </tbody>
                 </table>
               </div>
+            )}
 
-              {/* Expanded student detail */}
-              <AnimatePresence>
-                {selectedStudent && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="border-t border-blue-500/20 p-5 bg-blue-500/05"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-semibold text-blue-300 text-sm">{selectedStudent.name} — Detail</h4>
-                      <button onClick={() => setSelectedStudent(null)}>
-                        <XMarkIcon className="w-4 h-4 text-gray-400 hover:text-white" />
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3 mb-3">
-                      <div className="glass-card p-3 text-center">
-                        <div className="text-2xl font-black" style={{ color: statusColor(selectedStudent.score) }}>{selectedStudent.score}</div>
-                        <div className="text-xs text-gray-400">Cheat Score</div>
-                      </div>
-                      <div className="glass-card p-3 text-center">
-                        <div className="text-2xl font-black text-white">{selectedStudent.behaviors.length}</div>
-                        <div className="text-xs text-gray-400">Events</div>
-                      </div>
-                      <div className="glass-card p-3 text-center">
-                        <span className={`badge text-sm ${selectedStudent.status === 'flagged' ? 'badge-danger' : 'badge-safe'}`}>
-                          {selectedStudent.status}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      {selectedStudent.behaviors.map((b, i) => (
-                        <div key={i} className="text-xs text-gray-300 flex items-center gap-2">
-                          <span className="text-red-400">⚠</span>{b}
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Live Alerts Panel */}
-            <div className="glass-card overflow-hidden">
-              <div className="p-5 border-b border-white/05 flex items-center gap-2">
-                <BellIcon className="w-4 h-4 text-yellow-400" />
-                <h3 className="font-semibold text-white">Live Alerts</h3>
-                <span className="ml-auto badge badge-danger">{liveAlerts.length}</span>
+            {/* Pagination */}
+            {pages > 1 && (
+              <div className="flex items-center justify-center gap-2 p-4 border-t border-white/05">
+                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                        className="px-3 py-1.5 text-xs rounded-lg glass border border-white/08 disabled:opacity-30">← Prev</button>
+                <span className="text-xs text-gray-400">Page {page} of {pages}</span>
+                <button onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page === pages}
+                        className="px-3 py-1.5 text-xs rounded-lg glass border border-white/08 disabled:opacity-30">Next →</button>
               </div>
-              <div className="overflow-y-auto max-h-96 p-3 space-y-2">
-                <AnimatePresence>
-                  {liveAlerts.map((alert) => {
-                    const s = severityMap[alert.severity]
-                    return (
-                      <motion.div
-                        key={alert.id}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        className="p-3 rounded-xl border border-white/05 hover:border-white/10 transition-all"
-                        style={{ background: 'rgba(255,255,255,0.02)' }}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="text-xs font-semibold text-white truncate">{alert.student}</div>
-                            <div className="text-xs text-gray-400 mt-0.5">{alert.type}</div>
-                          </div>
-                          <span className={`badge ${s.badge} flex-shrink-0`}>{alert.severity}</span>
-                        </div>
-                        <div className="text-xs text-gray-600 mt-1.5 font-mono">{alert.time}</div>
-                      </motion.div>
-                    )
-                  })}
-                </AnimatePresence>
-              </div>
-            </div>
+            )}
           </div>
-
         </div>
       </div>
+
+      {/* ── AI Report Modal ── */}
+      <AnimatePresence>
+        {selectedResult && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+            onClick={e => { if (e.target === e.currentTarget) setSelectedResult(null) }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="glass-card p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
+              style={{ border: '1px solid rgba(139,92,246,0.3)' }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-bold text-white">AI Report — {selectedResult.user_name}</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Score: {selectedResult.exam_score}/{selectedResult.total_questions} ·
+                    Risk: {selectedResult.risk_level} ·
+                    Cheat Score: {selectedResult.cheat_score}
+                  </p>
+                </div>
+                <button onClick={() => setSelectedResult(null)} className="text-gray-500 hover:text-white transition-colors">
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
+
+              {reportLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="w-10 h-10 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                    <p className="text-gray-400 text-sm">Claude is analyzing the session...</p>
+                  </div>
+                </div>
+              ) : report ? (
+                <div className="prose prose-invert prose-sm max-w-none" style={{ fontSize: '13px', lineHeight: '1.7' }}>
+                  <ReactMarkdown>{report}</ReactMarkdown>
+                </div>
+              ) : null}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

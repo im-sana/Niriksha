@@ -8,20 +8,39 @@ These landmarks are used downstream by:
   - head_pose.py (6-DoF reference points)
 """
 from dataclasses import dataclass, field
-from typing import Optional, List
+from typing import Optional, List, Any
 import numpy as np
+
+mp = None
+cv2 = None
+MP_AVAILABLE = False
+CV2_AVAILABLE = False
 
 try:
     import mediapipe as mp
-    import cv2
-    MP_AVAILABLE = True
-except ImportError:
+    if hasattr(mp, "solutions"):
+        MP_AVAILABLE = True
+    else:
+        from mediapipe.python import solutions as mp_solutions
+
+        class _MPShim:
+            solutions = mp_solutions
+
+        mp = _MPShim()
+        MP_AVAILABLE = True
+except Exception:
     MP_AVAILABLE = False
+
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except Exception:
+    CV2_AVAILABLE = False
 
 
 @dataclass
 class FaceMeshResult:
-    landmarks: Optional[any] = None   # mediapipe NormalizedLandmarkList
+    landmarks: Optional[Any] = None   # mediapipe NormalizedLandmarkList
     landmark_list: List = field(default_factory=list)  # flat list of (x,y,z)
 
 
@@ -33,14 +52,17 @@ class FaceMeshAnalyzer:
     def __init__(self):
         self._mesh = None
         if MP_AVAILABLE:
-            self._mp_mesh = mp.solutions.face_mesh
-            self._mesh = self._mp_mesh.FaceMesh(
-                static_image_mode=False,
-                max_num_faces=1,
-                refine_landmarks=True,    # includes iris landmarks (468-477)
-                min_detection_confidence=0.5,
-                min_tracking_confidence=0.5,
-            )
+            try:
+                self._mp_mesh = mp.solutions.face_mesh
+                self._mesh = self._mp_mesh.FaceMesh(
+                    static_image_mode=False,
+                    max_num_faces=1,
+                    refine_landmarks=True,    # includes iris landmarks (468-477)
+                    min_detection_confidence=0.5,
+                    min_tracking_confidence=0.5,
+                )
+            except Exception:
+                self._mesh = None
 
     def analyze(self, frame: np.ndarray) -> FaceMeshResult:
         """
@@ -49,15 +71,32 @@ class FaceMeshAnalyzer:
         Returns:
             FaceMeshResult with MediaPipe NormalizedLandmarkList or None.
         """
-        if not MP_AVAILABLE or self._mesh is None:
+        if (
+            not MP_AVAILABLE
+            or not CV2_AVAILABLE
+            or self._mesh is None
+            or frame is None
+            or not isinstance(frame, np.ndarray)
+            or frame.size == 0
+        ):
             return FaceMeshResult(landmarks=None)
 
-        rgb    = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        result = self._mesh.process(rgb)
+        try:
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            result = self._mesh.process(rgb)
+        except Exception:
+            return FaceMeshResult(landmarks=None)
 
-        if result.multi_face_landmarks:
+        if getattr(result, "multi_face_landmarks", None):
             lm = result.multi_face_landmarks[0]
             flat = [(p.x, p.y, p.z) for p in lm.landmark]
             return FaceMeshResult(landmarks=lm, landmark_list=flat)
 
         return FaceMeshResult(landmarks=None)
+
+    def close(self):
+        if self._mesh is not None and hasattr(self._mesh, "close"):
+            try:
+                self._mesh.close()
+            except Exception:
+                pass
