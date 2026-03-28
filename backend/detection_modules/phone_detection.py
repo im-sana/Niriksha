@@ -42,7 +42,7 @@ class PhoneDetectionResult:
 class PhoneDetector:
     """Detect mobile phones in a frame using a local YOLO model."""
 
-    CONFIDENCE_THRESHOLD = 0.8
+    CONFIDENCE_THRESHOLD = 0.35
     PHONE_CLASS_INDEX = 67  # COCO class id for 'cell phone'
 
     def __init__(self, model_path: Optional[str] = None):
@@ -50,6 +50,7 @@ class PhoneDetector:
         self._device = "cpu"
         self._model_path = self._resolve_model_path(model_path)
         self._phone_class_index = self.PHONE_CLASS_INDEX
+        self._accept_any_class = False
         self._initialize_model()
 
     def _resolve_model_path(self, model_path: Optional[str]) -> Optional[Path]:
@@ -62,11 +63,11 @@ class PhoneDetector:
             return Path(env_model_path)
 
         backend_root = Path(__file__).resolve().parent.parent
-        for name in ("yolov8n.pt", "yolo26n.pt", "best_yolov8.pt"):
+        for name in ("best_yolov8.pt", "yolov8n.pt", "yolo26n.pt"):
             candidate = backend_root / name
             if candidate.exists():
                 return candidate
-        return backend_root / "yolov8n.pt"
+        return backend_root / "best_yolov8.pt"
 
     def _candidate_model_paths(self) -> list[Path]:
         """Return model candidates in fallback order."""
@@ -78,9 +79,9 @@ class PhoneDetector:
         backend_root = Path(__file__).resolve().parent.parent
         candidates = [
             primary,
+            backend_root / "best_yolov8.pt",
             backend_root / "yolov8n.pt",
             backend_root / "yolo26n.pt",
-            backend_root / "best_yolov8.pt",
         ]
 
         seen = set()
@@ -113,6 +114,12 @@ class PhoneDetector:
     def _infer_phone_class_index(self) -> int:
         """Infer phone class index from YOLO class names; fallback to COCO id."""
         try:
+            # If this is a single-class custom detector, accept class 0.
+            nc = getattr(self._model.model, "nc", None)
+            if nc == 1:
+                self._accept_any_class = True
+                return 0
+
             names = getattr(self._model.model, "names", None)
             if names is None:
                 names = getattr(self._model, "names", None)
@@ -193,7 +200,10 @@ class PhoneDetector:
                 conf = float(box.conf[0].item())
                 cls = int(box.cls[0].item())
 
-                if conf < self.CONFIDENCE_THRESHOLD or cls != self._phone_class_index:
+                if conf < self.CONFIDENCE_THRESHOLD:
+                    continue
+
+                if not self._accept_any_class and cls != self._phone_class_index:
                     continue
 
                 if conf > best_conf:
