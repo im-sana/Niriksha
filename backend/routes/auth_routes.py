@@ -11,6 +11,7 @@ Endpoints:
   GET  /auth/me            — Get current user info from JWT
 """
 from fastapi import APIRouter, HTTPException, status, Depends
+from bson import ObjectId
 
 from models.user import (
     UserCreate, UserLogin,
@@ -21,6 +22,7 @@ from services.auth_service import (
     register_face, verify_face,
 )
 from middleware.auth_middleware import get_current_user
+from database.connection import get_database
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -105,5 +107,23 @@ async def verify_face_endpoint(
 
 @router.get("/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
-    """Return the currently authenticated user's info decoded from JWT."""
-    return current_user
+    """Return current user info with fresh face-registration status from DB."""
+    try:
+        db = await get_database()
+        user = await db.users.find_one(
+            {"_id": ObjectId(current_user["id"])},
+            {"name": 1, "email": 1, "role": 1, "face_embedding": 1},
+        )
+        if user:
+            return {
+                "id": str(user["_id"]),
+                "name": user.get("name", current_user.get("name", "Unknown")),
+                "email": user.get("email", current_user.get("email", "")),
+                "role": user.get("role", current_user.get("role", "student")),
+                "has_face_embedding": bool(user.get("face_embedding")),
+            }
+    except Exception:
+        pass
+
+    # Safe fallback if DB lookup fails.
+    return {**current_user, "has_face_embedding": False}
