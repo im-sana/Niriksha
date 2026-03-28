@@ -1,6 +1,56 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
 
+:root {
+  --app-bg-start: #dbeafe;
+  --app-bg-end: #f8fafc;
+  --page-bg: radial-gradient(ellipse at 50% 0%, #dbeafe 0%, #f8fafc 72%);
+  --page-bg-center: radial-gradient(ellipse at center, #dbeafe 0%, #f8fafc 100%);
+  --landing-bg: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59,130,246,0.12) 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 80% 80%, rgba(139,92,246,0.08) 0%, transparent 60%), #f8fafc;
+  --app-text: #0f172a;
+  --app-scroll-track: #e2e8f0;
+  --app-scroll-thumb: #3b82f6;
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(15, 23, 42, 0.12);
+  --glass-dark-bg: rgba(255, 255, 255, 0.78);
+  --glass-dark-border: rgba(15, 23, 42, 0.14);
+  --gradient-border-fill: rgba(255, 255, 255, 0.92);
+  --surface-soft-bg: rgba(15, 23, 42, 0.04);
+  --surface-soft-border: rgba(15, 23, 42, 0.12);
+  --live-badge-bg: rgba(248, 250, 252, 0.92);
+  --input-bg: rgba(15, 23, 42, 0.03);
+  --input-border: rgba(15, 23, 42, 0.12);
+  --input-placeholder: #64748b;
+  --theme-toggle-bg: rgba(255, 255, 255, 0.86);
+  --theme-toggle-border: rgba(15, 23, 42, 0.12);
+  --theme-toggle-text: #0f172a;
+}
+
+:root[data-theme='dark'] {
+  --app-bg-start: #0f172a;
+  --app-bg-end: #030712;
+  --page-bg: radial-gradient(ellipse at 50% 0%, #0f172a 0%, #030712 70%);
+  --page-bg-center: radial-gradient(ellipse at center, #0f172a 0%, #030712 100%);
+  --landing-bg: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59,130,246,0.15) 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 80% 80%, rgba(139,92,246,0.1) 0%, transparent 60%), #030712;
+  --app-text: #f8fafc;
+  --app-scroll-track: #0a0f1e;
+  --app-scroll-thumb: #3b82f6;
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-dark-bg: rgba(10, 15, 30, 0.6);
+  --glass-dark-border: rgba(59, 130, 246, 0.15);
+  --gradient-border-fill: #0a0f1e;
+  --surface-soft-bg: rgba(255, 255, 255, 0.03);
+  --surface-soft-border: rgba(255, 255, 255, 0.08);
+  --live-badge-bg: rgba(10, 15, 30, 0.8);
+  --input-bg: rgba(255, 255, 255, 0.05);
+  --input-border: rgba(255, 255, 255, 0.08);
+  --input-placeholder: #64748b;
+  --theme-toggle-bg: rgba(10, 15, 30, 0.78);
+  --theme-toggle-border: rgba(59, 130, 246, 0.2);
+  --theme-toggle-text: #e2e8f0;
+}
+
 /* ============================================
    BASE STYLES
    ============================================ */
@@ -14,9 +64,11 @@
   }
 
   body {
-    @apply bg-dark-900 text-white font-sans overflow-x-hidden;
-    background: radial-gradient(ellipse at top, #0f172a 0%, #030712 70%);
+    @apply font-sans overflow-x-hidden;
+    color: var(--app-text);
+    background: radial-gradient(ellipse at top, var(--app-bg-start) 0%, var(--app-bg-end) 70%);
     min-height: 100vh;
+    transition: background 250ms ease, color 250ms ease;
   }
 
   button {
@@ -31,10 +83,10 @@
     width: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #0a0f1e;
+    background: var(--app-scroll-track);
   }
   ::-webkit-scrollbar-thumb {
-    background: #3b82f6;
+    background: var(--app-scroll-thumb);
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
@@ -47,24 +99,24 @@
    ============================================ */
 @layer components {
   .glass {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--glass-bg);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--glass-border);
   }
 
   .glass-dark {
-    background: rgba(10, 15, 30, 0.6);
+    background: var(--glass-dark-bg);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(59, 130, 246, 0.15);
+    border: 1px solid var(--glass-dark-border);
   }
 
   .glass-card {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--glass-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--glass-border);
     border-radius: 16px;
   }
 
@@ -182,9 +234,13 @@
 
   /* Input styles */
   .input-dark {
-    @apply w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 outline-none transition-all duration-300;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    @apply w-full px-4 py-3 rounded-xl outline-none transition-all duration-300;
+    color: var(--app-text);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+  }
+  .input-dark::placeholder {
+    color: var(--input-placeholder);
   }
   .input-dark:focus {
     border-color: rgba(59, 130, 246, 0.5);
@@ -199,6 +255,87 @@
   .badge-warning { @apply bg-yellow-500/20 text-yellow-400; }
   .badge-danger { @apply bg-red-500/20 text-red-400; }
   .badge-info { @apply bg-blue-500/20 text-blue-400; }
+}
+
+/* Ensure legacy hard-coded text utility classes remain readable in light mode. */
+:root[data-theme='light'] .text-white {
+  color: #0f172a !important;
+}
+
+:root[data-theme='light'] .text-gray-400,
+:root[data-theme='light'] .text-gray-500 {
+  color: #475569 !important;
+}
+
+.theme-toggle-panel {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 60;
+  display: inline-flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 14px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background: var(--theme-toggle-bg);
+  border: 1px solid var(--theme-toggle-border);
+}
+
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--theme-toggle-text);
+  background: transparent;
+  transition: all 150ms ease;
+}
+
+.theme-toggle-btn:hover {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.theme-toggle-btn.is-active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.24), rgba(139, 92, 246, 0.24));
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+@media (max-width: 640px) {
+  .theme-toggle-panel {
+    right: 10px;
+    bottom: 10px;
+  }
+
+  .theme-toggle-btn {
+    padding: 7px 8px;
+  }
+
+  .theme-toggle-btn span {
+    display: none;
+  }
+}
+
+.app-page-bg {
+  background: var(--page-bg);
+}
+
+.app-page-bg-center {
+  background: var(--page-bg-center);
+}
+
+.app-landing-bg {
+  background: var(--landing-bg);
+}
+
+.surface-soft {
+  background: var(--surface-soft-bg);
+  border: 1px solid var(--surface-soft-border);
 }
 
 /* ============================================
@@ -226,10 +363,14 @@
 /* Animated gradient border */
 .gradient-border {
   position: relative;
-  background: linear-gradient(#0a0f1e, #0a0f1e) padding-box,
+  background: linear-gradient(var(--gradient-border-fill), var(--gradient-border-fill)) padding-box,
               linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899) border-box;
   border: 2px solid transparent;
   border-radius: 16px;
+}
+
+.keep-white {
+  color: #fff !important;
 }
 
 /* Ping animation for alerts */
@@ -243,6 +384,42 @@
   border-radius: inherit;
   border: 2px solid rgba(239, 68, 68, 0.5);
   animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Light-mode utility remaps for legacy dark-first classes. */
+:root[data-theme='light'] .text-gray-300 {
+  color: #334155 !important;
+}
+
+:root[data-theme='light'] .text-gray-200 {
+  color: #334155 !important;
+}
+
+:root[data-theme='light'] .text-gray-600 {
+  color: #475569 !important;
+}
+
+:root[data-theme='light'] .hover\:text-white:hover {
+  color: #0f172a !important;
+}
+
+:root[data-theme='light'] .border-white\/05,
+:root[data-theme='light'] .border-white\/08,
+:root[data-theme='light'] .border-white\/10 {
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+:root[data-theme='light'] .bg-white\/03,
+:root[data-theme='light'] .bg-white\/05,
+:root[data-theme='light'] .bg-white\/10 {
+  background-color: rgba(15, 23, 42, 0.04) !important;
+}
+
+:root[data-theme='light'] .bg-dark-900,
+:root[data-theme='light'] .bg-dark-800,
+:root[data-theme='light'] .bg-dark-700,
+:root[data-theme='light'] .bg-dark-600 {
+  background-color: rgba(15, 23, 42, 0.12) !important;
 }
 @keyframes ping {
   75%, 100% { transform: scale(1.1); opacity: 0; }

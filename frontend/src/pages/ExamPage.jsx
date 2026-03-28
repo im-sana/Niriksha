@@ -283,8 +283,7 @@ export default function ExamPage() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: 'radial-gradient(ellipse at center, #0f172a 0%, #030712 100%)' }}
+        className="min-h-screen flex items-center justify-center app-page-bg-center"
       >
         <motion.div
           initial={{ y: 30, opacity: 0 }}
@@ -343,8 +342,7 @@ export default function ExamPage() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: 'radial-gradient(ellipse at center, #0f172a 0%, #030712 100%)' }}
+        className="min-h-screen flex items-center justify-center app-page-bg-center"
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
@@ -388,8 +386,7 @@ export default function ExamPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen flex flex-col"
-      style={{ background: '#030712' }}
+      className="min-h-screen flex flex-col app-page-bg"
     >
       {/* ── Top Bar ── */}
       <div className="glass-dark border-b border-white/05 px-6 py-3 flex items-center justify-between z-20">

@@ -148,9 +148,7 @@ export default function LandingPage() {
     >
       {/* ── Background mesh gradient ── */}
       <div className="fixed inset-0 z-0"
-        style={{
-          background: 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59,130,246,0.15) 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 80% 80%, rgba(139,92,246,0.1) 0%, transparent 60%), #030712'
-        }}
+        style={{ background: 'var(--landing-bg)' }}
       />
 
       {/* ── Floating orbs ── */}
@@ -163,7 +161,7 @@ export default function LandingPage() {
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg flex items-center justify-center"
                style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}>
-            <ShieldCheckIcon className="w-5 h-5 text-white" />
+            <ShieldCheckIcon className="w-5 h-5 keep-white" />
           </div>
           <span className="text-xl font-bold gradient-text">Niriksha</span>
         </div>
@@ -179,7 +177,7 @@ export default function LandingPage() {
                 onClick={() => setIsProfileOpen((open) => !open)}
                 className="flex items-center gap-2 px-3 py-2 rounded-xl glass border border-white/10 hover:border-blue-500/40 transition-all"
               >
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold keep-white"
                      style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}>
                   {avatarLabel}
                 </div>
@@ -261,7 +259,7 @@ export default function LandingPage() {
           Intelligent Exam
           <br />
           <span className="gradient-text text-glow-blue">Monitoring</span>
-          <span className="text-white"> Reimagined</span>
+          <span className="text-slate-900 dark:text-white"> Reimagined</span>
         </motion.h1>
 
         <motion.p
@@ -438,10 +436,11 @@ export default function LandingPage() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
-          className="max-w-4xl mx-auto gradient-border p-12 text-center"
+          className="max-w-4xl mx-auto gradient-border p-12 text-center
+          "
         >
-          <h2 className="text-3xl font-bold mb-4">Ready to Secure Your Exams?</h2>
-          <p className="text-gray-400 mb-8">
+          <h2 className="text-3xl font-bold mb-4   ">Ready to Secure Your Exams?</h2>
+          <p className="text-gray-400 mb-8 ">
             Launch the monitored exam interface or explore the real-time monitoring dashboard.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

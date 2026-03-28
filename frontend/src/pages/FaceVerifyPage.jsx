@@ -100,8 +100,7 @@ export default function FaceVerifyPage() {
   const statusColor = status === 'success' ? '#10b981' : (status === 'failed' || status === 'no_face') ? '#ef4444' : '#3b82f6'
 
   return (
-    <div className="min-h-screen flex items-center justify-center"
-         style={{ background: 'radial-gradient(ellipse at 50% 0%, #0f172a 0%, #030712 70%)' }}>
+    <div className="min-h-screen flex items-center justify-center app-page-bg">
 
       <Motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -173,7 +172,7 @@ export default function FaceVerifyPage() {
             {/* Live badge */}
             {status === 'ready' && (
               <div className="absolute top-2 left-2 text-xs font-bold px-2 py-1 rounded-md"
-                   style={{ background: 'rgba(10,15,30,0.8)', border: '1px solid rgba(239,68,68,0.5)' }}>
+                   style={{ background: 'var(--live-badge-bg)', border: '1px solid rgba(239,68,68,0.5)' }}>
                 <span className="status-dot danger mr-1" />LIVE
               </div>
             )}
@@ -256,7 +255,7 @@ export default function FaceVerifyPage() {
 
         {/* Tips */}
         <div className="mt-4 p-3 rounded-xl text-xs text-gray-500 space-y-1"
-             style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+             style={{ background: 'var(--surface-soft-bg)', border: '1px solid var(--surface-soft-border)' }}>
           <div className="font-medium text-gray-400 mb-1">Tips for best results:</div>
           <div>• Ensure good lighting on your face</div>
           <div>• Look directly at the camera</div>

@@ -126,8 +126,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-8"
-         style={{ background: 'radial-gradient(ellipse at 50% 0%, #0f172a 0%, #030712 70%)' }}>
+    <div className="min-h-screen flex items-center justify-center py-8 app-page-bg">
 
       <Motion.div
         initial={{ opacity: 0, y: 30 }}
@@ -150,7 +149,7 @@ export default function SignupPage() {
               <div
                 className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all"
                 style={{
-                  background: i <= step ? 'linear-gradient(135deg, #3b82f6, #8b5cf6)' : 'rgba(255,255,255,0.05)',
+                  background: i <= step ? 'linear-gradient(135deg, #3b82f6, #8b5cf6)' : 'var(--surface-soft-bg)',
                   color: i <= step ? '#fff' : '#64748b',
                 }}
               >
@@ -210,8 +209,8 @@ export default function SignupPage() {
                         onClick={() => setForm(p => ({ ...p, role: r }))}
                         className="py-2.5 rounded-xl text-sm font-medium capitalize transition-all"
                         style={{
-                          background: form.role === r ? (r === 'admin' ? 'rgba(139,92,246,0.2)' : 'rgba(59,130,246,0.2)') : 'rgba(255,255,255,0.03)',
-                          border: form.role === r ? `1px solid ${r === 'admin' ? 'rgba(139,92,246,0.4)' : 'rgba(59,130,246,0.4)'}` : '1px solid rgba(255,255,255,0.08)',
+                          background: form.role === r ? (r === 'admin' ? 'rgba(139,92,246,0.2)' : 'rgba(59,130,246,0.2)') : 'var(--surface-soft-bg)',
+                          border: form.role === r ? `1px solid ${r === 'admin' ? 'rgba(139,92,246,0.4)' : 'rgba(59,130,246,0.4)'}` : '1px solid var(--surface-soft-border)',
                           color: form.role === r ? (r === 'admin' ? '#c4b5fd' : '#93c5fd') : '#64748b',
                         }}
                       >
@@ -251,7 +250,7 @@ export default function SignupPage() {
                       style={{ maxHeight: '220px', objectFit: 'cover' }}
                       screenshotFormat="image/jpeg" />
                     <div className="absolute top-2 left-2 text-xs font-bold px-2 py-1 rounded-md"
-                         style={{ background: 'rgba(10,15,30,0.8)', border: '1px solid rgba(239,68,68,0.5)' }}>
+                      style={{ background: 'var(--live-badge-bg)', border: '1px solid rgba(239,68,68,0.5)' }}>
                       <span className="status-dot danger mr-1" />LIVE
                     </div>
                   </div>

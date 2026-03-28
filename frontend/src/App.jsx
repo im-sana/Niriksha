@@ -11,6 +11,8 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { ErrorBoundary } from 'react-error-boundary'
+import ThemeToggle from './components/ThemeToggle'
+import { useTheme } from './context/ThemeContext'
 
 // Route-level lazy imports keep the initial bundle lean.
 const LandingPage = lazy(() => import('./pages/LandingPage'))
@@ -27,8 +29,18 @@ import ProtectedRoute  from './components/ProtectedRoute'
 
 // Error Fallback
 function ErrorFallback({ error, resetErrorBoundary }) {
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
+
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: '#030712' }}>
+    <div
+      className="min-h-screen flex items-center justify-center"
+      style={{
+        background: isDark
+          ? 'radial-gradient(ellipse at top, #0f172a 0%, #030712 70%)'
+          : 'radial-gradient(ellipse at top, #dbeafe 0%, #f8fafc 72%)',
+      }}
+    >
       <div className="glass-card p-8 max-w-md text-center">
         <div className="text-4xl mb-4">⚠️</div>
         <h2 className="text-xl font-bold text-white mb-2">Something went wrong</h2>
@@ -40,9 +52,25 @@ function ErrorFallback({ error, resetErrorBoundary }) {
 }
 
 function App() {
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
+
   return (
-    <AnimatePresence mode="wait">
-      <Suspense fallback={<div className="min-h-screen" style={{ background: '#030712' }} />}>
+    <>
+      <ThemeToggle />
+      <AnimatePresence mode="wait">
+      <Suspense
+        fallback={
+          <div
+            className="min-h-screen"
+            style={{
+              background: isDark
+                ? 'radial-gradient(ellipse at top, #0f172a 0%, #030712 70%)'
+                : 'radial-gradient(ellipse at top, #dbeafe 0%, #f8fafc 72%)',
+            }}
+          />
+        }
+      >
         <Routes>
           {/* Public routes */}
           <Route path="/"         element={<LandingPage />} />
@@ -81,7 +109,8 @@ function App() {
           } />
         </Routes>
       </Suspense>
-    </AnimatePresence>
+      </AnimatePresence>
+    </>
   )
 }
 
