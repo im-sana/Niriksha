@@ -1,7 +1,7 @@
 import asyncio
 from database.connection import get_database
 
-async def test():
+async def _run_test():
     db = await get_database()
     await db.sessions.insert_one({'cheat_score': 10})
     await db.sessions.insert_one({'cheat_score': 20})
@@ -10,5 +10,9 @@ async def test():
     flagged = await db.sessions.count_documents({'cheat_score': {'$gte': 15}})
     print(f'Flagged count: {flagged}')
 
+
+def test():
+    asyncio.run(_run_test())
+
 if __name__ == '__main__':
-    asyncio.run(test())
+    asyncio.run(_run_test())

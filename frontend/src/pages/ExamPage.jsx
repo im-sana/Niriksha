@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence ,motion} from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import Webcam from 'react-webcam'
@@ -13,6 +13,8 @@ import {
 } from '@heroicons/react/24/outline'
 import useBrowserMonitor from '../hooks/useBrowserMonitor'
 import useWebSocket from '../hooks/useWebSocket'
+import { useAuthContext } from '../context/AuthContext'
+import { examAPI } from '../api/client'
 
 // ──────────────────────────────────────────────
 // Sample MCQ Questions
@@ -82,6 +84,11 @@ function formatTime(seconds) {
 export default function ExamPage() {
   const navigate = useNavigate()
   const webcamRef = useRef(null)
+  const { user } = useAuthContext()  // Get logged-in student info from JWT
+
+  // Session tracking
+  const [sessionId, setSessionId] = useState(null)
+  const [resultId,  setResultId]  = useState(null)
 
   // Exam state
   const [currentQ, setCurrentQ]     = useState(0)
@@ -96,10 +103,10 @@ export default function ExamPage() {
   const [faceStatus, setFaceStatus]         = useState('Initializing...')
   const [isFlagged, setIsFlagged]           = useState(false)
   const [cameraError, setCameraError]       = useState(false)
-  const [webSocketStatus, setWsStatus]      = useState('connecting')
 
-  // ── Hooks ──
-  const wsEvents = useWebSocket('ws://localhost:8000/ws/exam/demo_student')
+  // WebSocket should subscribe to the current exam session_id
+  const wsUrl = sessionId ? `ws://localhost:8000/ws/exam/${sessionId}` : null
+  const { lastMessage: wsEvents } = useWebSocket(wsUrl)
 
   // Browser monitor hook — reports events back via callback
   const addBehaviorEvent = useCallback((type, message) => {
@@ -122,6 +129,89 @@ export default function ExamPage() {
 
   useBrowserMonitor(addBehaviorEvent)
 
+  // ── Send webcam frames to backend for AI analysis ──
+  useEffect(() => {
+    if (!examStarted || submitted || !sessionId || cameraError) return
+
+    let cancelled = false
+
+    const analyzeCurrentFrame = async () => {
+      try {
+        const imageSrc = webcamRef.current?.getScreenshot?.()
+        if (!imageSrc || cancelled) return
+
+        const frameB64 = imageSrc.split(',')[1]
+        if (!frameB64) return
+
+        const { data } = await examAPI.analyzeFrame({
+          session_id: sessionId,
+          frame_b64: frameB64,
+        })
+
+        if (cancelled) return
+
+        const nextScore = Number(data?.cheat_score ?? 0)
+        setCheatScore(nextScore)
+        if (nextScore >= CHEAT_THRESHOLD && !isFlagged) {
+          setIsFlagged(true)
+          toast.error('⚠️ Cheating Flagged! Examiner has been alerted.', { duration: 6000 })
+        }
+
+        const facePresent = data?.results?.face_present
+        setFaceStatus(facePresent ? 'Face Detected' : 'Face Missing')
+
+        const incomingEvents = Array.isArray(data?.events) ? data.events : []
+        if (incomingEvents.length) {
+          const now = Date.now()
+          const entries = incomingEvents.map((event, index) => ({
+            id: now + index,
+            type: event.type,
+            message: event.message || event.type,
+            time: new Date().toLocaleTimeString(),
+          }))
+          setBehaviorLog(prev => [...entries, ...prev].slice(0, 20))
+        }
+      } catch {
+        // Keep exam running even if a single frame upload fails
+      }
+    }
+
+    // immediate first frame + periodic polling
+    analyzeCurrentFrame()
+    const intervalId = setInterval(analyzeCurrentFrame, 2000)
+
+    return () => {
+      cancelled = true
+      clearInterval(intervalId)
+    }
+  }, [examStarted, submitted, sessionId, cameraError, isFlagged])
+
+  // ── Handle submit with useCallback (must be before timer effect) ──
+  const handleSubmit = useCallback(async () => {
+    const correct = QUESTIONS.reduce((acc, q, i) => acc + (answers[i] === q.correct ? 1 : 0), 0)
+    setSubmitted(true)
+    toast.success(`Exam submitted! Score: ${correct}/${QUESTIONS.length}`)
+
+    // Persist result to MongoDB
+    try {
+      const sid = sessionId || `local_${user?.id || 'demo'}_${Date.now()}`
+      const { data } = await examAPI.submit({
+        session_id:      sid,
+        answers:         answers,
+        cheat_score:     cheatScore,
+        exam_score:      correct,
+        total_questions: QUESTIONS.length,
+      })
+      setResultId(data.result_id)
+      // Navigate to persistent result page after 2 seconds
+      setTimeout(() => {
+        navigate(`/result?session_id=${sid}&result_id=${data.result_id}`)
+      }, 2000)
+    } catch {
+      // Fallback: just show submit screen without navigation
+    }
+  }, [answers, cheatScore, sessionId, user, navigate])
+
   // ── Timer countdown ──
   useEffect(() => {
     if (!examStarted || submitted) return
@@ -132,20 +222,45 @@ export default function ExamPage() {
       })
     }, 1000)
     return () => clearInterval(id)
-  }, [examStarted, submitted])
+  }, [examStarted, submitted, handleSubmit])
 
   // ── Handle WebSocket events from backend ──
   useEffect(() => {
     if (!wsEvents) return
     try {
       const data = JSON.parse(wsEvents)
-      if (data.event) {
-        addBehaviorEvent(data.event, data.message || data.event)
-        setFaceStatus(data.face_status || faceStatus)
-        setWsStatus('connected')
+      if (Array.isArray(data.events) && data.events.length) {
+        const now = Date.now()
+        const entries = data.events.map((event, index) => ({
+          id: now + index,
+          type: event.type,
+          message: event.message || event.type,
+          time: new Date().toLocaleTimeString(),
+        }))
+        queueMicrotask(() => setBehaviorLog(prev => [...entries, ...prev].slice(0, 20)))
+        queueMicrotask(() => setFaceStatus(data.face_status || faceStatus))
+      } else if (data.face_status) {
+        queueMicrotask(() => setFaceStatus(data.face_status))
       }
     } catch { /* raw message */ }
-  }, [wsEvents])
+  }, [wsEvents, faceStatus])
+
+  // ── Start exam session (create DB session) ──
+  const startExamSession = async () => {
+    try {
+      const { data } = await examAPI.start({
+        exam_id: 'CS101',
+        student_name: user?.name,
+      })
+      setSessionId(data.session_id)
+      return data.session_id
+    } catch {
+      // If JWT-protected start fails, use a local session ID
+      const local = `local_${user?.id || 'demo'}_${Date.now()}`
+      setSessionId(local)
+      return local
+    }
+  }
 
   const handleSelect = (optIdx) => {
     setAnswers(prev => ({ ...prev, [currentQ]: optIdx }))
@@ -157,12 +272,6 @@ export default function ExamPage() {
 
   const handlePrev = () => {
     if (currentQ > 0) setCurrentQ(c => c - 1)
-  }
-
-  const handleSubmit = () => {
-    const correct = QUESTIONS.reduce((acc, q, i) => acc + (answers[i] === q.correct ? 1 : 0), 0)
-    setSubmitted(true)
-    toast.success(`Exam submitted! Score: ${correct}/${QUESTIONS.length}`)
   }
 
   // ── Score ring color ──
@@ -208,7 +317,10 @@ export default function ExamPage() {
           <motion.button
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
-            onClick={() => setExamStarted(true)}
+            onClick={async () => {
+              await startExamSession()
+              setExamStarted(true)
+            }}
             className="btn-primary w-full py-4 text-base glow-blue"
           >
             Start Exam Session
@@ -258,8 +370,13 @@ export default function ExamPage() {
           <div className={`badge text-sm py-2 px-4 mb-6 ${isFlagged ? 'badge-danger' : 'badge-safe'}`}>
             {isFlagged ? '⚠️ Flagged for Review' : '✅ No Violations Detected'}
           </div>
-          <button onClick={() => navigate('/dashboard')} className="btn-primary w-full">
-            View Dashboard Report
+          <button 
+            onClick={() => resultId || sessionId 
+              ? navigate(`/result?session_id=${sessionId}&result_id=${resultId}`)
+              : navigate('/')}
+            className="btn-primary w-full"
+          >
+            View Full Report
           </button>
         </motion.div>
       </motion.div>
@@ -307,7 +424,7 @@ export default function ExamPage() {
           {/* Student info */}
           <div className="flex items-center gap-2">
             <UserCircleIcon className="w-5 h-5 text-gray-400" />
-            <span className="text-sm text-gray-300">Student Demo</span>
+            <span className="text-sm text-gray-300">{user?.name || 'Student'}</span>
           </div>
 
           {isFlagged && (
@@ -342,6 +459,7 @@ export default function ExamPage() {
               <Webcam
                 ref={webcamRef}
                 audio={false}
+                screenshotFormat="image/jpeg"
                 className="w-full rounded-xl"
                 style={{ height: '200px', objectFit: 'cover' }}
                 onUserMediaError={() => setCameraError(true)}

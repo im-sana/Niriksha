@@ -1,126 +1,166 @@
 """
-Head Pose Estimation Module — OpenCV solvePnP
-================================================
-Uses 6 facial landmark reference points and OpenCV's solvePnP algorithm
-to estimate the 3D rotation of the head (yaw, pitch, roll).
+Head Pose Estimation Module
+===========================
+Estimates rough head direction from MediaPipe Face Mesh landmarks.
 
-Detects:
-  - Head turned left  (yaw > +threshold)
-  - Head turned right (yaw < -threshold)
-  - Head tilted down  (pitch > +threshold)
-
-Reference points (MediaPipe Face Mesh indices):
-  1 = Nose tip
-  9 = Chin
-  57 = Left eye left corner
-  287 = Right eye right corner
-  130 = Left mouth corner
-  359 = Right mouth corner
+This module intentionally avoids hard dependency on dlib so backend startup
+does not fail when dlib is not installed.
 """
 from dataclasses import dataclass
-import numpy as np
+from collections import deque
+import math
+from typing import Optional
 
-try:
-    import cv2
-    CV2_AVAILABLE = True
-except ImportError:
-    CV2_AVAILABLE = False
+import cv2
+import numpy as np
 
 
 @dataclass
 class HeadPoseResult:
-    direction:  str   # 'center' | 'left' | 'right' | 'down' | 'up'
-    yaw:        float = 0.0
-    pitch:      float = 0.0
-    roll:       float = 0.0
-
-
-# 3D model reference points (in mm, standard head model)
-MODEL_POINTS_3D = np.array([
-    (0.0,    0.0,    0.0),    # Nose tip
-    (0.0,  -330.0, -65.0),    # Chin
-    (-225.0, 170.0, -135.0),  # Left eye left corner
-    (225.0,  170.0, -135.0),  # Right eye right corner
-    (-150.0, -150.0, -125.0), # Left mouth corner
-    (150.0,  -150.0, -125.0), # Right mouth corner
-], dtype=np.float64)
-
-# Landmark indices for the 6 reference points
-LANDMARK_INDICES = [1, 9, 57, 287, 130, 359]
-
-# Thresholds (degrees)
-YAW_THRESH   = 20   # degrees
-PITCH_THRESH = 20
+    direction: str  # 'center' | 'left' | 'right' | 'up' | 'down'
+    pitch: float = 0.0
+    yaw: float = 0.0
+    roll: float = 0.0
 
 
 class HeadPoseEstimator:
-    """
-    Estimates head orientation using PnP (Perspective-n-Point) algorithm.
-    Camera matrix is approximated from frame dimensions.
-    """
+    """Estimate head pose direction from Face Mesh landmarks."""
 
-    def estimate(self, frame: np.ndarray, landmarks) -> HeadPoseResult:
-        """
-        Args:
-            frame:     BGR OpenCV frame (used for camera matrix approximation).
-            landmarks: MediaPipe NormalizedLandmarkList.
-        Returns:
-            HeadPoseResult with yaw, pitch, roll in degrees.
-        """
-        if not CV2_AVAILABLE or landmarks is None:
-            return HeadPoseResult(direction="center")
+    # MediaPipe landmark indices.
+    NOSE_TIP = 1
+    CHIN = 152
+    LEFT_EYE = 33
+    RIGHT_EYE = 263
+    LEFT_MOUTH = 61
+    RIGHT_MOUTH = 291
 
-        h, w = frame.shape[:2]
-        lm   = landmarks.landmark
+    # Canonical 3D model points for PnP solving.
+    MODEL_POINTS = np.array(
+        [
+            (0.0, 0.0, 0.0),
+            (0.0, -63.6, -12.5),
+            (-43.3, 32.7, -26.0),
+            (43.3, 32.7, -26.0),
+            (-28.9, -28.9, -24.1),
+            (28.9, -28.9, -24.1),
+        ],
+        dtype=np.float64,
+    )
 
-        # 2D image points from landmarks
-        image_points_2d = []
-        for idx in LANDMARK_INDICES:
-            if idx >= len(lm):
-                return HeadPoseResult(direction="center")
-            lp = lm[idx]
-            image_points_2d.append((lp.x * w, lp.y * h))
-        image_points_2d = np.array(image_points_2d, dtype=np.float64)
+    ANGLE_HISTORY_SIZE = 10
+    YAW_THRESHOLD = 15.0
+    PITCH_THRESHOLD = 12.0
 
-        # Camera intrinsics (approximation: focal_length = image_width)
-        focal_length  = float(w)
-        center        = (w / 2.0, h / 2.0)
-        camera_matrix = np.array([
-            [focal_length, 0,            center[0]],
-            [0,            focal_length, center[1]],
-            [0,            0,            1        ],
-        ], dtype=np.float64)
+    def __init__(self):
+        self._yaw_history = deque(maxlen=self.ANGLE_HISTORY_SIZE)
+        self._pitch_history = deque(maxlen=self.ANGLE_HISTORY_SIZE)
+        self._roll_history = deque(maxlen=self.ANGLE_HISTORY_SIZE)
 
-        dist_coeffs = np.zeros((4, 1))  # Assume no radial distortion
+    def _smooth(self, history: deque, value: float) -> float:
+        history.append(value)
+        return float(np.mean(history))
 
-        success, rot_vec, trans_vec = cv2.solvePnP(
-            MODEL_POINTS_3D,
-            image_points_2d,
+    @staticmethod
+    def _camera_matrix(frame_shape: tuple[int, int, int]) -> tuple[np.ndarray, np.ndarray]:
+        height, width = frame_shape[:2]
+        focal_length = float(width)
+        center = (width / 2.0, height / 2.0)
+        camera_matrix = np.array(
+            [
+                [focal_length, 0.0, center[0]],
+                [0.0, focal_length, center[1]],
+                [0.0, 0.0, 1.0],
+            ],
+            dtype=np.float64,
+        )
+        dist_coeffs = np.zeros((4, 1), dtype=np.float64)
+        return camera_matrix, dist_coeffs
+
+    def _image_points_from_landmarks(self, landmarks, frame_shape) -> Optional[np.ndarray]:
+        lm = getattr(landmarks, "landmark", None)
+        if lm is None or len(lm) <= self.RIGHT_MOUTH:
+            return None
+
+        h, w = frame_shape[:2]
+        indices = [
+            self.NOSE_TIP,
+            self.CHIN,
+            self.LEFT_EYE,
+            self.RIGHT_EYE,
+            self.LEFT_MOUTH,
+            self.RIGHT_MOUTH,
+        ]
+
+        try:
+            return np.array(
+                [(lm[i].x * w, lm[i].y * h) for i in indices],
+                dtype=np.float64,
+            )
+        except Exception:
+            return None
+
+    def _solve_angles(self, image_points: np.ndarray, frame_shape: tuple[int, int, int]) -> Optional[tuple[float, float, float]]:
+        camera_matrix, dist_coeffs = self._camera_matrix(frame_shape)
+
+        success, rotation_vector, _ = cv2.solvePnP(
+            self.MODEL_POINTS,
+            image_points,
             camera_matrix,
             dist_coeffs,
             flags=cv2.SOLVEPNP_ITERATIVE,
         )
-
         if not success:
+            return None
+
+        rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
+        sy = math.sqrt(rotation_matrix[0, 0] ** 2 + rotation_matrix[1, 0] ** 2)
+        singular = sy < 1e-6
+
+        if not singular:
+            pitch = math.atan2(rotation_matrix[2, 1], rotation_matrix[2, 2])
+            yaw = math.atan2(-rotation_matrix[2, 0], sy)
+            roll = math.atan2(rotation_matrix[1, 0], rotation_matrix[0, 0])
+        else:
+            pitch = math.atan2(-rotation_matrix[1, 2], rotation_matrix[1, 1])
+            yaw = math.atan2(-rotation_matrix[2, 0], sy)
+            roll = 0.0
+
+        return float(np.degrees(pitch)), float(np.degrees(yaw)), float(np.degrees(roll))
+
+    def estimate(self, frame: np.ndarray, landmarks) -> HeadPoseResult:
+        """
+        Estimate head direction from frame and MediaPipe landmarks.
+        Returns a safe default when inputs are invalid.
+        """
+        if (
+            frame is None
+            or not isinstance(frame, np.ndarray)
+            or frame.size == 0
+            or landmarks is None
+        ):
             return HeadPoseResult(direction="center")
 
-        # Convert rotation vector to Euler angles
-        rot_mat, _ = cv2.Rodrigues(rot_vec)
-        proj_matrix = np.hstack((rot_mat, trans_vec))
-        _, _, _, _, _, _, euler_angles = cv2.decomposeProjectionMatrix(proj_matrix)
+        image_points = self._image_points_from_landmarks(landmarks, frame.shape)
+        if image_points is None:
+            return HeadPoseResult(direction="center")
 
-        pitch_deg = euler_angles[0, 0]
-        yaw_deg   = euler_angles[1, 0]
-        roll_deg  = euler_angles[2, 0]
+        angles = self._solve_angles(image_points, frame.shape)
+        if angles is None:
+            return HeadPoseResult(direction="center")
 
-        # Classify direction
-        if yaw_deg > YAW_THRESH:
+        pitch = self._smooth(self._pitch_history, angles[0])
+        yaw = self._smooth(self._yaw_history, angles[1])
+        roll = self._smooth(self._roll_history, angles[2])
+
+        if yaw <= -self.YAW_THRESHOLD:
             direction = "left"
-        elif yaw_deg < -YAW_THRESH:
+        elif yaw >= self.YAW_THRESHOLD:
             direction = "right"
-        elif pitch_deg > PITCH_THRESH:
+        elif pitch >= self.PITCH_THRESHOLD:
+            direction = "up"
+        elif pitch <= -self.PITCH_THRESHOLD:
             direction = "down"
         else:
             direction = "center"
 
-        return HeadPoseResult(direction=direction, yaw=yaw_deg, pitch=pitch_deg, roll=roll_deg)
+        return HeadPoseResult(direction=direction, pitch=pitch, yaw=yaw, roll=roll)

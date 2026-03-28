@@ -12,6 +12,7 @@ Algorithm:
 """
 from dataclasses import dataclass
 import numpy as np
+from collections import deque
 
 
 @dataclass
@@ -40,10 +41,17 @@ RIGHT_INNER = 263
 RIGHT_UPPER = 386
 RIGHT_LOWER = 374
 
-# Thresholds
-H_LEFT_THRESH  = 0.35   # iris ratio < this → looking left
-H_RIGHT_THRESH = 0.65   # iris ratio > this → looking right
-V_DOWN_THRESH  = 0.65   # vertical ratio > this → looking down
+# Default thresholds (used before calibration is ready)
+H_LEFT_THRESH  = 0.42
+H_RIGHT_THRESH = 0.58
+V_DOWN_THRESH  = 0.56
+
+# Adaptive thresholds around per-user baseline ratios
+H_DELTA_THRESH = 0.045
+V_DELTA_THRESH = 0.055
+
+CALIBRATION_FRAMES = 15
+SMOOTHING_WINDOW = 6
 
 
 class EyeMovementDetector:
@@ -51,6 +59,21 @@ class EyeMovementDetector:
     Determines gaze direction from Face Mesh landmarks.
     Averages the left and right eye iris positions.
     """
+
+    def __init__(self):
+        self._h_calib = deque(maxlen=CALIBRATION_FRAMES)
+        self._v_calib = deque(maxlen=CALIBRATION_FRAMES)
+        self._h_hist = deque(maxlen=SMOOTHING_WINDOW)
+        self._v_hist = deque(maxlen=SMOOTHING_WINDOW)
+
+    @staticmethod
+    def _clamp01(value: float) -> float:
+        return float(max(0.0, min(1.0, value)))
+
+    def _baseline(self) -> tuple[float, float] | None:
+        if len(self._h_calib) < CALIBRATION_FRAMES or len(self._v_calib) < CALIBRATION_FRAMES:
+            return None
+        return float(np.median(self._h_calib)), float(np.median(self._v_calib))
 
     def detect(self, landmarks, frame_shape) -> EyeMovementResult:
         """
@@ -98,18 +121,41 @@ class EyeMovementDetector:
         r_min_y, r_max_y = min(r_upper_y, r_lower_y), max(r_upper_y, r_lower_y)
         r_v_ratio = (r_iris_y - r_min_y) / max(r_max_y - r_min_y, 1e-6)
 
-        # Average both eyes
-        avg_h = (l_h_ratio + r_h_ratio) / 2.0
-        avg_v = (l_v_ratio + r_v_ratio) / 2.0
+        # Average both eyes and clamp out numeric outliers.
+        avg_h = self._clamp01((l_h_ratio + r_h_ratio) / 2.0)
+        avg_v = self._clamp01((l_v_ratio + r_v_ratio) / 2.0)
+
+        self._h_hist.append(avg_h)
+        self._v_hist.append(avg_v)
+        smooth_h = float(np.mean(self._h_hist))
+        smooth_v = float(np.mean(self._v_hist))
+
+        # Keep calibration rolling so baseline adapts to slight pose changes.
+        self._h_calib.append(smooth_h)
+        self._v_calib.append(smooth_v)
+        baseline = self._baseline()
 
         # ── Classify ──
-        if avg_v > V_DOWN_THRESH:
-            direction = "down"
-        elif avg_h < H_LEFT_THRESH:
-            direction = "left"
-        elif avg_h > H_RIGHT_THRESH:
-            direction = "right"
+        if baseline is None:
+            if smooth_v > V_DOWN_THRESH:
+                direction = "down"
+            elif smooth_h < H_LEFT_THRESH:
+                direction = "left"
+            elif smooth_h > H_RIGHT_THRESH:
+                direction = "right"
+            else:
+                direction = "center"
         else:
-            direction = "center"
+            base_h, base_v = baseline
+            dh = smooth_h - base_h
+            dv = smooth_v - base_v
+            if dv > V_DELTA_THRESH:
+                direction = "down"
+            elif dh < -H_DELTA_THRESH:
+                direction = "left"
+            elif dh > H_DELTA_THRESH:
+                direction = "right"
+            else:
+                direction = "center"
 
-        return EyeMovementResult(direction=direction, ratio_h=avg_h, ratio_v=avg_v)
+        return EyeMovementResult(direction=direction, ratio_h=smooth_h, ratio_v=smooth_v)

@@ -13,12 +13,31 @@ from dataclasses import dataclass, field
 from typing import Optional, List
 import numpy as np
 
+mp = None
+cv2 = None
+MP_AVAILABLE = False
+CV2_AVAILABLE = False
+
 try:
     import mediapipe as mp
-    import cv2
-    MP_AVAILABLE = True
-except ImportError:
+    if hasattr(mp, "solutions"):
+        MP_AVAILABLE = True
+    else:
+        from mediapipe.python import solutions as mp_solutions
+
+        class _MPShim:
+            solutions = mp_solutions
+
+        mp = _MPShim()
+        MP_AVAILABLE = True
+except Exception:
     MP_AVAILABLE = False
+
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except Exception:
+    CV2_AVAILABLE = False
 
 
 @dataclass
@@ -43,13 +62,16 @@ class HandDetector:
     def __init__(self):
         self._hands = None
         if MP_AVAILABLE:
-            self._mp_hands = mp.solutions.hands
-            self._hands = self._mp_hands.Hands(
-                static_image_mode=False,
-                max_num_hands=2,
-                min_detection_confidence=0.5,
-                min_tracking_confidence=0.5,
-            )
+            try:
+                self._mp_hands = mp.solutions.hands
+                self._hands = self._mp_hands.Hands(
+                    static_image_mode=False,
+                    max_num_hands=2,
+                    min_detection_confidence=0.5,
+                    min_tracking_confidence=0.5,
+                )
+            except Exception:
+                self._hands = None
 
     def detect(self, frame: np.ndarray) -> HandDetectionResult:
         """
@@ -58,13 +80,23 @@ class HandDetector:
         Returns:
             HandDetectionResult with suspicious flag and reason.
         """
-        if not MP_AVAILABLE or self._hands is None:
+        if (
+            not MP_AVAILABLE
+            or not CV2_AVAILABLE
+            or self._hands is None
+            or frame is None
+            or not isinstance(frame, np.ndarray)
+            or frame.size == 0
+        ):
             return HandDetectionResult(hands_detected=0, suspicious=False)
 
-        rgb    = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        result = self._hands.process(rgb)
+        try:
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            result = self._hands.process(rgb)
+        except Exception:
+            return HandDetectionResult(hands_detected=0, suspicious=False)
 
-        if not result.multi_hand_landmarks:
+        if not getattr(result, "multi_hand_landmarks", None):
             return HandDetectionResult(hands_detected=0, suspicious=False)
 
         count = len(result.multi_hand_landmarks)

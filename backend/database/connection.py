@@ -1,116 +1,113 @@
 """
-Niriksha Backend — MongoDB Connection
-========================================
-Uses Motor (async MongoDB driver) to connect to a local MongoDB instance.
-Falls back to a mock in-memory store if MongoDB is unavailable.
+Niriksha Backend — MongoDB Connection (Updated)
+================================================
+Updated to:
+  - Read MONGODB_URL from .env (python-dotenv)
+  - Add retry logic (3 attempts, 2s delay between retries)
+  - Remove in-memory fallback (MongoDB is required for production)
+  - Register collections: users, results, sessions, cheating_logs, screenshots
 """
-import motor.motor_asyncio
+import asyncio
+import logging
+import os
 from typing import Optional
 
-# ── Configuration ─────────────────────────────────────────────
-MONGO_URI = "mongodb://localhost:27017"
-DB_NAME   = "niriksha"
+import motor.motor_asyncio
+from dotenv import load_dotenv
 
-# Singleton client
+load_dotenv()
+
+logger = logging.getLogger(__name__)
+
+# ── Config from environment ────────────────────────────────────
+MONGO_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+DB_NAME   = os.getenv("DB_NAME", "niriksha")
+
+# Singleton client/db
 _client: Optional[motor.motor_asyncio.AsyncIOMotorClient] = None
 _db = None
 
-# ── In-memory fallback for development without MongoDB ────────
-class InMemoryCollection:
-    """Mimics a minimal Motor collection API for development."""
-    def __init__(self):
-        self._data = []
-        self._counter = 0
-
-    async def insert_one(self, doc):
-        doc["_id"] = str(self._counter)
-        self._counter += 1
-        self._data.append(dict(doc))
-        class Result:
-            inserted_id = doc["_id"]
-        return Result()
-
-    async def insert_many(self, docs):
-        for doc in docs:
-            await self.insert_one(doc)
-
-    async def find_one(self, query):
-        for doc in self._data:
-            if all(doc.get(k) == v for k, v in query.items() if not isinstance(v, dict)):
-                return dict(doc)
-        return None
-
-    async def update_one(self, query, update):
-        for doc in self._data:
-            if all(doc.get(k) == v for k, v in query.items() if not isinstance(v, dict)):
-                for k, v in update.get("$set", {}).items():
-                    doc[k] = v
-                return
-
-    async def count_documents(self, query):
-        count = 0
-        for doc in self._data:
-            match = True
-            for k, v in query.items():
-                if isinstance(v, dict):
-                    # Handle basic operators like $gte
-                    if "$gte" in v and not (doc.get(k, 0) >= v["$gte"]):
-                        match = False
-                elif doc.get(k) != v:
-                    match = False
-            if match:
-                count += 1
-        return count
-
-    def find(self, query=None):
-        return _InMemoryCursor(self._data)
-
-    def aggregate(self, pipeline):
-        return _InMemoryCursor([{"_id": None, "avg": 0}])
-
-
-class _InMemoryCursor:
-    def __init__(self, data):
-        self._data = data[:]
-
-    def sort(self, *args):
-        return self
-
-    async def to_list(self, n=None):
-        return [dict(d) for d in (self._data[:n] if n else self._data)]
-
-
-class InMemoryDB:
-    """Mock database with three collections."""
-    def __init__(self):
-        self.sessions      = InMemoryCollection()
-        self.cheating_logs = InMemoryCollection()
-        self.students      = InMemoryCollection()
-        self.exams         = InMemoryCollection()
-
-
-_mock_db = InMemoryDB()
+# ── Retry settings ─────────────────────────────────────────────
+MAX_RETRIES    = 3
+RETRY_DELAY_S  = 2
 
 
 async def get_database():
     """
-    Returns the Motor database if MongoDB is reachable,
-    otherwise returns the in-memory mock database.
+    Returns the Motor (async MongoDB) database instance.
+    
+    - Reads MONGODB_URL from .env
+    - Attempts connection up to MAX_RETRIES times with RETRY_DELAY_S delay
+    - Creates required indexes on first connection
+    - Raises RuntimeError if all retries fail (no silent fallback)
     """
     global _client, _db
+
     if _db is not None:
         return _db
 
+    last_error = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            logger.info(f"[DB] Connecting to MongoDB (attempt {attempt}/{MAX_RETRIES}): {MONGO_URL}")
+            client = motor.motor_asyncio.AsyncIOMotorClient(
+                MONGO_URL,
+                serverSelectionTimeoutMS=5000,
+            )
+            # Verify connection is live
+            await client.server_info()
+
+            _client = client
+            _db = client[DB_NAME]
+            logger.info(f"[DB] Connected to MongoDB: {MONGO_URL}/{DB_NAME}")
+
+            # Create indexes on first connection
+            await _ensure_indexes(_db)
+            return _db
+
+        except Exception as e:
+            last_error = e
+            logger.warning(f"[DB] Connection attempt {attempt} failed: {e}")
+            if attempt < MAX_RETRIES:
+                await asyncio.sleep(RETRY_DELAY_S)
+
+    # All retries exhausted
+    raise RuntimeError(
+        f"[DB] Failed to connect to MongoDB after {MAX_RETRIES} attempts. "
+        f"Last error: {last_error}. "
+        f"Please ensure MongoDB is running at: {MONGO_URL}"
+    )
+
+
+async def _ensure_indexes(db) -> None:
+    """Create necessary database indexes for performance and uniqueness."""
     try:
-        _client = motor.motor_asyncio.AsyncIOMotorClient(
-            MONGO_URI, serverSelectionTimeoutMS=3000
-        )
-        # Verify connection
-        await _client.server_info()
-        _db = _client[DB_NAME]
-        print(f"[DB] Connected to MongoDB: {MONGO_URI}/{DB_NAME}")
-        return _db
+        # Users: unique email index
+        await db.users.create_index("email", unique=True)
+
+        # Sessions: compound index for fast lookup
+        await db.sessions.create_index([("student_id", 1), ("exam_id", 1)])
+        await db.sessions.create_index("status")
+
+        # Results: user and timestamp for sorting
+        await db.results.create_index("user_id")
+        await db.results.create_index([("timestamp", -1)])
+        await db.results.create_index("risk_level")
+
+        # Cheating logs: session lookup
+        await db.cheating_logs.create_index("session_id")
+        await db.cheating_logs.create_index([("timestamp", -1)])
+
+        logger.info("[DB] Database indexes ensured.")
     except Exception as e:
-        print(f"[DB] MongoDB unavailable ({e}). Using in-memory store.")
-        _db = _mock_db
-        return _db
+        logger.warning(f"[DB] Index creation warning (non-fatal): {e}")
+
+
+async def close_connection():
+    """Close the MongoDB connection (call on app shutdown)."""
+    global _client, _db
+    if _client:
+        _client.close()
+        _client = None
+        _db = None
+        logger.info("[DB] MongoDB connection closed.")

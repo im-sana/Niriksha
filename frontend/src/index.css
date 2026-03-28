@@ -20,6 +20,14 @@
     min-height: 100vh;
   }
 
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
   ::-webkit-scrollbar {
     width: 6px;
   }
