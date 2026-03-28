@@ -1,9 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
-const THEME_STORAGE_KEY = 'niriksha-theme'
-const VALID_THEMES = new Set(['light', 'dark', 'system'])
-
 const ThemeContext = createContext(null)
 
 function getSystemTheme() {
@@ -11,29 +8,9 @@ function getSystemTheme() {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
-function getInitialTheme() {
-  if (typeof window === 'undefined') return 'system'
-  const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY)
-  return VALID_THEMES.has(savedTheme) ? savedTheme : 'system'
-}
-
-function applyTheme(mode) {
-  const root = document.documentElement
-  const resolved = mode === 'system' ? getSystemTheme() : mode
-  root.setAttribute('data-theme', resolved)
-  root.classList.toggle('dark', resolved === 'dark')
-  return resolved
-}
-
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(getInitialTheme)
   const [systemTheme, setSystemTheme] = useState(getSystemTheme)
-  const resolvedTheme = theme === 'system' ? systemTheme : theme
-
-  useEffect(() => {
-    applyTheme(theme)
-    window.localStorage.setItem(THEME_STORAGE_KEY, theme)
-  }, [theme])
+  const resolvedTheme = systemTheme
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
@@ -52,10 +29,8 @@ export function ThemeProvider({ children }) {
   }, [resolvedTheme])
 
   const value = useMemo(() => ({
-    theme,
-    setTheme,
     resolvedTheme,
-  }), [theme, resolvedTheme])
+  }), [resolvedTheme])
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }

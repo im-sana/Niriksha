@@ -11,7 +11,6 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { ErrorBoundary } from 'react-error-boundary'
-import ThemeToggle from './components/ThemeToggle'
 import { useTheme } from './context/ThemeContext'
 
 // Route-level lazy imports keep the initial bundle lean.
@@ -57,7 +56,6 @@ function App() {
 
   return (
     <>
-      <ThemeToggle />
       <AnimatePresence mode="wait">
       <Suspense
         fallback={
