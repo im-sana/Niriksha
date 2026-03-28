@@ -15,6 +15,7 @@ import {
   ChevronDownIcon,
   ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline'
+import logo from '../assets/logo.svg'
 
 // ---------- Animation Variants ----------
 const fadeUp = {
@@ -158,13 +159,19 @@ export default function LandingPage() {
 
       {/* ── Navbar ── */}
       <nav className="relative z-50 flex items-center justify-between px-8 py-5 glass-dark border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center"
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="flex items-center gap-3 transition-opacity hover:opacity-90"
+          aria-label="Go to home"
+        >
+          {/* <div className="w-9 h-9 rounded-lg flex items-center justify-center"
                style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}>
             <ShieldCheckIcon className="w-5 h-5 keep-white" />
-          </div>
+          </div> */}
+          <img src={logo} alt="Niriksha Logo" className="w-10 h-10 rounded-lg" />
           <span className="text-xl font-bold gradient-text">Niriksha</span>
-        </div>
+        </button>
         <div className="hidden md:flex items-center gap-8 text-sm text-gray-400">
           <a href="#features" className="hover:text-blue-400 transition-colors">Features</a>
           <a href="#how-it-works" className="hover:text-blue-400 transition-colors">How It Works</a>
