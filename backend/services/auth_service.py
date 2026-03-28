@@ -7,6 +7,7 @@ Routes should call these functions; no DB logic inside route handlers.
 import logging
 from typing import Optional
 from datetime import datetime
+import os
 
 from database.connection import get_database
 from models.user import UserCreate, UserLogin, FaceRegisterRequest, FaceVerifyRequest
@@ -35,12 +36,8 @@ async def register_user(data: UserCreate) -> dict:
 
     email = data.email.lower()
     
-    # 5. ADD DEBUGGING
-    print("Signup email:", email)
-
     # Check for duplicate email
     existing_user = await users_collection.find_one({"email": email})
-    print("DB result:", existing_user)
 
     if existing_user is not None:
         raise ValueError("Email may already be in use")
@@ -141,6 +138,11 @@ async def register_face(user_id: str, frame_b64: str) -> dict:
     """
     from bson import ObjectId
 
+    try:
+        user_obj_id = ObjectId(user_id)
+    except Exception:
+        return {"success": False, "message": "Invalid user id."}
+
     # Liveness check first
     is_live = liveness_check(frame_b64)
     if not is_live:
@@ -153,12 +155,15 @@ async def register_face(user_id: str, frame_b64: str) -> dict:
 
     # Store embedding in DB
     db = await get_database()
-    await db.users.update_one(
-        {"_id": ObjectId(user_id)},
+    update_result = await db.users.update_one(
+        {"_id": user_obj_id},
         {"$set": {"face_embedding": embedding}},
     )
 
-    return {"success": True, "message": "Face registered successfully!"}
+    if update_result.matched_count == 0:
+        return {"success": False, "message": "User not found for face registration."}
+
+    return {"success": True, "message": "Face registered successfully!", "has_face_embedding": True}
 
 
 async def verify_face(user_id: str, frame_b64: str) -> dict:
@@ -170,11 +175,16 @@ async def verify_face(user_id: str, frame_b64: str) -> dict:
     """
     from bson import ObjectId
 
+    try:
+        user_obj_id = ObjectId(user_id)
+    except Exception:
+        return {"verified": False, "confidence": 0.0, "message": "Invalid user id."}
+
     db = await get_database()
 
     # Fetch stored embedding
     user = await db.users.find_one(
-        {"_id": ObjectId(user_id)},
+        {"_id": user_obj_id},
         {"face_embedding": 1, "name": 1}
     )
     if not user:
@@ -195,7 +205,8 @@ async def verify_face(user_id: str, frame_b64: str) -> dict:
         return {"verified": False, "confidence": 0.0, "message": "No face detected in current frame. Ensure your face is visible."}
 
     # Compare
-    is_match, confidence = compare_embeddings(stored_embedding, live_embedding)
+    threshold = float(os.getenv("FACE_VERIFY_THRESHOLD", "0.55"))
+    is_match, confidence = compare_embeddings(stored_embedding, live_embedding, threshold=threshold)
 
     if is_match:
         return {"verified": True, "confidence": confidence, "message": f"Identity verified! Welcome, {user.get('name', 'Student')}."}

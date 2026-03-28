@@ -1,6 +1,7 @@
 import { useNavigate, } from 'react-router-dom'
 import { useAuthContext } from '../context/AuthContext'
 import toast from 'react-hot-toast'
+import { motion } from 'framer-motion'
 
 import {
   ShieldCheckIcon,

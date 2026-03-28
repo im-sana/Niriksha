@@ -8,7 +8,7 @@
  */
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { AnimatePresence ,motion} from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import Webcam from 'react-webcam'
 import {
@@ -22,7 +22,7 @@ const STEPS = ['Account Info', 'Face Registration', 'Complete']
 
 export default function SignupPage() {
   const navigate = useNavigate()
-  const { login, isAuthenticated, user } = useAuthContext()
+  const { login, isAuthenticated, user, updateFaceStatus } = useAuthContext()
   const webcamRef = useRef(null)
 
   const [step, setStep] = useState(0)
@@ -35,12 +35,18 @@ export default function SignupPage() {
   const [form, setForm] = useState({
     name: '', email: '', password: '', confirmPwd: '', role: 'student',
   })
+  const Motion = motion
 
   useEffect(() => {
     if (!isAuthenticated) return
+
+    // Stay on signup while this page is actively completing
+    // step-by-step onboarding (account -> face registration -> complete).
+    if (step > 0 || registeredUser) return
+
     const redirectPath = user?.role === 'admin' ? '/dashboard' : '/face-verify'
     navigate(redirectPath, { replace: true })
-  }, [isAuthenticated, user, navigate])
+  }, [isAuthenticated, user, navigate, step, registeredUser])
 
   // ── Step 1: Register account ──────────────────────────────────
   const handleRegister = async (e) => {
@@ -97,6 +103,7 @@ export default function SignupPage() {
     try {
       const userId = registeredUser.user.id
       await authAPI.registerFace(userId, faceEmbedding)
+      updateFaceStatus(true)
       toast.success('Face registered successfully! ✅')
       setStep(2)
     } catch (err) {
@@ -122,7 +129,7 @@ export default function SignupPage() {
     <div className="min-h-screen flex items-center justify-center py-8"
          style={{ background: 'radial-gradient(ellipse at 50% 0%, #0f172a 0%, #030712 70%)' }}>
 
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md mx-4"
@@ -160,7 +167,7 @@ export default function SignupPage() {
 
             {/* ── STEP 0: Account Info ── */}
             {step === 0 && (
-              <motion.form
+              <Motion.form
                 key="step0"
                 initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
                 onSubmit={handleRegister}
@@ -214,16 +221,16 @@ export default function SignupPage() {
                   </div>
                 </div>
 
-                <motion.button type="submit" disabled={loading} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                <Motion.button type="submit" disabled={loading} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                   className="btn-primary w-full py-3 mt-1 flex items-center justify-center gap-2">
                   {loading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Creating...</> : 'Continue →'}
-                </motion.button>
-              </motion.form>
+                </Motion.button>
+              </Motion.form>
             )}
 
             {/* ── STEP 1: Face Registration ── */}
             {step === 1 && (
-              <motion.div key="step1"
+              <Motion.div key="step1"
                 initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
                 className="space-y-4">
                 <div className="text-center mb-2">
@@ -251,28 +258,28 @@ export default function SignupPage() {
                 )}
 
                 <div className="flex gap-2">
-                  <motion.button onClick={captureFace} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                  <Motion.button onClick={captureFace} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                     className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
                     style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', color: '#93c5fd' }}>
                     📸 {capturedFace ? 'Retake' : 'Capture'}
-                  </motion.button>
+                  </Motion.button>
                   {capturedFace && (
-                    <motion.button onClick={handleFaceRegister} disabled={loading} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                    <Motion.button onClick={handleFaceRegister} disabled={loading} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                       className="flex-1 btn-primary py-2.5 text-sm flex items-center justify-center gap-1">
                       {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : '✅ Register Face'}
-                    </motion.button>
+                    </Motion.button>
                   )}
                 </div>
 
                 <button onClick={skipFace} className="w-full text-xs text-gray-500 hover:text-gray-300 transition-colors py-1">
                   Skip for now (you can add face later)
                 </button>
-              </motion.div>
+              </Motion.div>
             )}
 
             {/* ── STEP 2: Complete ── */}
             {step === 2 && (
-              <motion.div key="step2"
+              <Motion.div key="step2"
                 initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                 className="text-center space-y-4">
                 <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
@@ -295,11 +302,11 @@ export default function SignupPage() {
                     <span className="text-gray-300">Face {faceEmbedding ? 'registered' : 'not registered (can add later)'}</span>
                   </div>
                 </div>
-                <motion.button onClick={handleFinish} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                <Motion.button onClick={handleFinish} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                   className="btn-primary w-full py-3">
                   {registeredUser?.user?.role === 'admin' ? 'Go to Dashboard →' : 'Start Face Verification →'}
-                </motion.button>
-              </motion.div>
+                </Motion.button>
+              </Motion.div>
             )}
 
           </AnimatePresence>
@@ -309,7 +316,7 @@ export default function SignupPage() {
           <span className="text-xs text-gray-500">Already have an account? </span>
           <Link to="/login" className="text-xs text-blue-400 hover:text-blue-300">Sign in</Link>
         </div>
-      </motion.div>
+      </Motion.div>
     </div>
   )
 }
