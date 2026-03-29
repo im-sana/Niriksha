@@ -73,6 +73,9 @@ export const dashboardAPI = {
   student:  (userId) => api.get(`/dashboard/student/${userId}`),
   report:   (resultId) => api.get(`/dashboard/report/${resultId}`),
   events:   (sessionId) => api.get(`/dashboard/events/${sessionId}`),
-  screenshotUrl: (userId, filename) =>
-    `${API_BASE}/dashboard/screenshot/${userId}/${filename}`,
+  screenshotUrl: (userId, filename) => {
+    const token = localStorage.getItem('niriksha_token')
+    const baseUrl = `${API_BASE}/dashboard/screenshot/${userId}/${filename}`
+    return token ? `${baseUrl}?token=${token}` : baseUrl
+  },
 }

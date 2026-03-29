@@ -13,18 +13,58 @@ Provides:
 import os
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
-from middleware.auth_middleware import require_admin
+from middleware.auth_middleware import require_admin, get_current_user
 from services.report_service import get_dashboard_stats, get_all_results, get_or_generate_report
 from services.exam_service import get_results_for_user, get_cheating_events
 from database.connection import get_database
 from utils.claude_client import explain_incident
+from utils.auth import decode_token
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
 SCREENSHOTS_DIR = os.getenv("SCREENSHOTS_DIR", "screenshots")
+
+
+# ── Custom auth for screenshot endpoint (header or query param) ────
+async def get_current_user_flexible(request: Request) -> dict:
+    """
+    Get current user from Authorization header or ?token query param.
+    Allows <a> tags and direct browser requests to work alongside API calls.
+    """
+    token = None
+    
+    # Try Authorization header first
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]  # Remove "Bearer " prefix
+    
+    # Fallback to query parameter
+    if not token:
+        token = request.query_params.get("token")
+    
+    # Decode token
+    if token:
+        payload = decode_token(token)
+        if payload:
+            user_id = payload.get("sub")
+            role    = payload.get("role")
+            if user_id and role:
+                return {
+                    "id":    user_id,
+                    "role":  role,
+                    "name":  payload.get("name", "Unknown"),
+                    "email": payload.get("email", ""),
+                }
+    
+    # No valid auth found
+    raise HTTPException(
+        status_code=401,
+        detail="Not authenticated. Provide Authorization header or ?token query parameter.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 @router.get("/stats")
@@ -119,12 +159,21 @@ async def session_events(session_id: str, admin: dict = Depends(require_admin)):
 async def serve_screenshot(
     user_id: str,
     filename: str,
-    admin: dict = Depends(require_admin),
+    user: dict = Depends(get_current_user_flexible),
 ):
     """
     Serve a captured screenshot file.
-    Only admins can access screenshot files.
+    Students can access their own screenshots; admins can access any student's screenshots.
+    
+    Auth via Authorization header (Bearer token) or ?token=<jwt> query parameter.
     """
+    # Authorization: allow admin access to any screenshot, or student access to own screenshots
+    if user.get("role") != "admin" and user.get("id") != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only access your own screenshots."
+        )
+    
     filepath = os.path.join(SCREENSHOTS_DIR, user_id, filename)
     
     # Security: prevent path traversal
