@@ -42,6 +42,11 @@ async def save_exam_result(
     user_name  = user.get("name", "Unknown")  if user else "Unknown"
     user_email = user.get("email", "")        if user else ""
 
+    # Pull latest screenshot path from the session so dashboard can open it later.
+    session_query = {"_id": ObjectId(session_id)} if ObjectId.is_valid(session_id) else {"student_id": user_id, "status": "active"}
+    session_doc = await db.sessions.find_one(session_query, {"screenshot_path": 1})
+    screenshot_path = session_doc.get("screenshot_path") if session_doc else None
+
     result_doc = {
         "user_id":         user_id,
         "user_name":       user_name,
@@ -54,7 +59,7 @@ async def save_exam_result(
         "flagged":         flagged,
         "answers":         answers,
         "timestamp":       datetime.utcnow().isoformat(),
-        "screenshot_path": None,          # Updated later if screenshot captured
+        "screenshot_path": screenshot_path,
         "claude_report":   None,          # Generated on demand
     }
 
@@ -64,7 +69,7 @@ async def save_exam_result(
 
     # Update session status to 'submitted'
     await db.sessions.update_one(
-        {"_id": ObjectId(session_id)} if len(session_id) == 24 else {"student_id": user_id},
+        session_query,
         {"$set": {
             "status":      "submitted",
             "cheat_score": cheat_score,

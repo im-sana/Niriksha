@@ -17,6 +17,15 @@ from services.exam_service import get_cheating_events, cache_claude_report
 logger = logging.getLogger(__name__)
 
 
+def _normalize_report_labels(report_text: str) -> str:
+    """Keep report wording consistent across cached and fresh reports."""
+    return (
+        report_text
+        .replace("Integrity Risk Score", "Cheating Score")
+        .replace("Integrity Score", "Cheating Score")
+    )
+
+
 async def get_or_generate_report(result_id: str) -> str:
     """
     Return the cached Claude report for a result, or generate it now.
@@ -40,7 +49,10 @@ async def get_or_generate_report(result_id: str) -> str:
 
     # Return cached report if already generated
     if result.get("claude_report"):
-        return result["claude_report"]
+        normalized_cached = _normalize_report_labels(result["claude_report"])
+        if normalized_cached != result["claude_report"]:
+            await cache_claude_report(result_id, normalized_cached)
+        return normalized_cached
 
     # Gather events for this session
     events = await get_cheating_events(result.get("session_id", ""))
@@ -56,9 +68,11 @@ async def get_or_generate_report(result_id: str) -> str:
         events          = events,
     )
 
+    normalized_report = _normalize_report_labels(report)
+
     # Cache for future requests
-    await cache_claude_report(result_id, report)
-    return report
+    await cache_claude_report(result_id, normalized_report)
+    return normalized_report
 
 
 async def get_dashboard_stats() -> dict:

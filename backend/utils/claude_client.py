@@ -126,7 +126,7 @@ Generate a professional post-exam report in Markdown format for the following st
 Student: {student_name}
 Exam Score: {exam_score}/{total_questions} ({pct}%)
 Exam Duration: {duration_text}
-Integrity Risk Score: {cheat_score}
+Cheating Score: {cheat_score}
 Risk Level: {risk_level}
 Flagged for Review: {"Yes" if flagged else "No"}
 
@@ -150,7 +150,7 @@ Keep it professional, factual, and concise (max 300 words). Use markdown formatt
 
 **Exam Score:** {exam_score}/{total_questions} ({pct}%)  
 **Risk Level:** {risk_level}  
-**Integrity Score:** {cheat_score}  
+**Cheating Score:** {cheat_score}  
 **Flagged:** {"Yes" if flagged else "No"}
 
 ## Behavioral Analysis

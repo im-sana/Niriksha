@@ -31,17 +31,30 @@ echo.
 echo ============================================================
 echo ^>^> Backend syntax compile
 echo ============================================================
-call %PYTHON_CMD% -m compileall -q ^
-  "%BACKEND_DIR%\app.py" ^
-  "%BACKEND_DIR%\main.py" ^
-  "%BACKEND_DIR%\database" ^
-  "%BACKEND_DIR%\detection_modules" ^
-  "%BACKEND_DIR%\middleware" ^
-  "%BACKEND_DIR%\models" ^
-  "%BACKEND_DIR%\routes" ^
-  "%BACKEND_DIR%\services" ^
-  "%BACKEND_DIR%\utils" ^
-  "%BACKEND_DIR%\test_db.py"
+if exist "%BACKEND_DIR%\main.py" (
+  call %PYTHON_CMD% -m compileall -q ^
+    "%BACKEND_DIR%\main.py" ^
+    "%BACKEND_DIR%\app.py" ^
+    "%BACKEND_DIR%\database" ^
+    "%BACKEND_DIR%\detection_modules" ^
+    "%BACKEND_DIR%\middleware" ^
+    "%BACKEND_DIR%\models" ^
+    "%BACKEND_DIR%\routes" ^
+    "%BACKEND_DIR%\services" ^
+    "%BACKEND_DIR%\utils" ^
+    "%BACKEND_DIR%\test_db.py"
+) else (
+  call %PYTHON_CMD% -m compileall -q ^
+    "%BACKEND_DIR%\app.py" ^
+    "%BACKEND_DIR%\database" ^
+    "%BACKEND_DIR%\detection_modules" ^
+    "%BACKEND_DIR%\middleware" ^
+    "%BACKEND_DIR%\models" ^
+    "%BACKEND_DIR%\routes" ^
+    "%BACKEND_DIR%\services" ^
+    "%BACKEND_DIR%\utils" ^
+    "%BACKEND_DIR%\test_db.py"
+)
 if errorlevel 1 (
   echo FAILED: Backend syntax compile
   set "EXIT_CODE=1"
